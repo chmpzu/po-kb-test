@@ -131,7 +131,7 @@
       <p>Kanban board view with Backlog, In Progress, Review, Done.</p>
     </div>
     <div data-template="processors">
-      <h2>Processor Roles</h2>
+      <h2>Processor</h2>
       <h3 class="section">PO Related Tools</h3>
       <div class="cards-container">
         <div class="card">
@@ -325,24 +325,23 @@ try {
     container.append(h3);
 
     const ul = document.createElement('ul');
-    items.forEach(item => {
-      const li = document.createElement('li');
-      const a  = document.createElement('a');
-      a.href = '#';
-      a.textContent = item.name;
-      a.style.cursor = 'pointer';
+items.forEach(item => {
+  // 1) create a <li>
+  const li = document.createElement('li');
 
-      // HERE we refer to our globally created overlay, titleEl, bodyEl:
-      a.addEventListener('click', e => {
-        e.preventDefault();
-        document.getElementById('email-modal-title').textContent = item.name;
-        document.getElementById('email-modal-body').innerHTML  = item.content;
-        overlay.style.display = 'flex';
-      });
+  // 2) create the <a>, give it our marker class and data-content
+  const a  = document.createElement('a');
+  a.href         = '#';
+  a.textContent  = item.name;
+  a.style.cursor = 'pointer';
+  a.classList.add('email-template-link');
+  a.dataset.content = item.content;
 
-      li.append(a);
-      ul.append(li);
-    });
+  // 3) assemble and append
+  li.append(a);
+  ul.append(li);
+});
+
     container.append(ul);
   });
 } catch (err) {
@@ -359,24 +358,42 @@ try {
     } catch (e) { console.error('SOPs error:', e); }
 
     // ==== Trackers ====
-    try {
-      const rows = await fetchSheet('Trackers');
-      const div  = document.querySelector('[data-template="trackers"]');
-      div.innerHTML = '<h2>Trackers</h2><ul>' +
-        rows.map(r => `<li><a href="${r[2]}" target="_blank">${r[1]}</a></li>`).join('') +
-        '</ul>';
-    } catch (e) { console.error('Trackers error:', e); }
+try {
+  const rows    = await fetchSheet('Trackers');
+  const data   = rows.slice(1);  // ← drop the header row
+  const div    = document.querySelector('[data-template="trackers"]');
+
+  if (data.length === 0) {
+    div.innerHTML = '<h2>Trackers</h2><p class="italic">No trackers available.</p>';
+  } else {
+    div.innerHTML = '<h2>Trackers</h2><ul>' +
+      data.map(r =>
+        `<li><a href="${r[2]|| '#'}" target="_blank">${r[1]|| 'Untitled'}</a></li>`
+      ).join('') +
+      '</ul>';
+  }
+} catch (e) {
+  console.error('Trackers error:', e);
+}
 
     // ==== Supplier Contacts ====
-    try {
-      const rows = await fetchSheet('Supplier Contacts');
-      const tbody = document.querySelector('[data-template="suppliers"] tbody');
-      tbody.innerHTML = rows.map(r => `
-        <tr>
-          <td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>
-          <td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td>
-        </tr>`).join('');
-    } catch (e) { console.error('Suppliers error:', e); }
+try {
+  const rows = await fetchSheet('Supplier Contacts');
+  // drop the sheet’s header row:
+  const dataRows = rows.slice(1);
+
+  const tbody = document.querySelector('[data-template="suppliers"] tbody');
+  tbody.innerHTML = dataRows.map(r => `
+    <tr>
+      <td>${r[0]||''}</td>
+      <td>${r[1]||''}</td>
+      <td>${r[2]||''}</td>
+      <td>${r[3]||''}</td>
+      <td>${r[4]||''}</td>
+      <td>${r[5]||''}</td>
+    </tr>
+  `).join('');
+} catch (e) { console.error('Suppliers error:', e); }
 
     // ==== Re-bind announcement clicks ====
     document.querySelectorAll('.ann-link').forEach(link => {
@@ -392,6 +409,7 @@ try {
 document.addEventListener('DOMContentLoaded', () => {
   // 1) Build our single modal overlay once
   const overlay = document.createElement('div');
+  overlay.id = 'email-modal-overlay'; 
   Object.assign(overlay.style, {
     position: 'fixed', top:0, left:0, right:0, bottom:0,
     background: 'rgba(0,0,0,0.5)',
@@ -439,6 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Body
   const bodyEl = document.createElement('div');
+  bodyEl.id = 'email-modal-body'; 
   Object.assign(bodyEl.style, {
     whiteSpace:'pre-wrap', wordBreak:'break-word'
   });
@@ -446,6 +465,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   overlay.append(dialog);
   document.body.append(overlay);
+    const detail = document.getElementById('detail-view');
+  detail.addEventListener('click', e => {
+    if (!e.target.classList.contains('email-template-link')) return;
+    e.preventDefault();
+    titleEl.textContent   = e.target.textContent;
+    bodyEl.innerHTML      = e.target.dataset.content;
+    overlay.style.display = 'flex';
+  });
 
   // 2) Fetch helper (GSheet via gviz)
   const SHEET_ID = '1zWuPjF-bTWWRTtbs9BLWJk3w4h7Xrpi5oqyUbi6Oqrg';
@@ -458,38 +485,43 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 3) Load Email Templates & wire click → modal
-  (async function loadEmailTemplates(){
-    const rows = (await fetchSheet('Email Templates')).slice(1);
-    const container = document.querySelector('[data-template="email"]');
-    container.innerHTML = '<h2>Email Templates</h2>';
-    const groups = {};
-    rows.forEach(([cat, name, content]) => {
-      (groups[cat] = groups[cat]||[]).push({name,content});
+(async function loadEmailTemplates(){
+  const rows = (await fetchSheet('Email Templates')).slice(1);
+  const container = document.querySelector('[data-template="email"]');
+  container.innerHTML = '<h2>Email Templates</h2>';
+
+  // group by category…
+  const groups = {};
+  rows.forEach(([cat, name, content]) => {
+    (groups[cat] = groups[cat]||[]).push({name,content});
+  });
+
+  // FOR EACH CATEGORY
+  for (const [cat, items] of Object.entries(groups)) {
+    const h3 = document.createElement('h3');
+    h3.className = 'section';
+    h3.textContent = cat.toUpperCase();
+    container.append(h3);
+
+    const ul = document.createElement('ul');
+
+    // ← YOUR UPDATED LOOP GOES HERE:
+    items.forEach(item => {
+      const li = document.createElement('li');
+      const a  = document.createElement('a');
+      a.href            = '#';
+      a.textContent     = item.name;
+      a.style.cursor    = 'pointer';
+      a.classList.add('email-template-link');
+      a.dataset.content = item.content;
+      li.append(a);
+      ul.append(li);
     });
-    for (const [cat, items] of Object.entries(groups)) {
-      const h3 = document.createElement('h3');
-      h3.className = 'section';
-      h3.textContent = cat.toUpperCase();
-      container.append(h3);
-      const ul = document.createElement('ul');
-      items.forEach(item => {
-        const li = document.createElement('li');
-        const a  = document.createElement('a');
-        a.href = '#';
-        a.textContent = item.name;
-        a.style.cursor = 'pointer';
-        a.addEventListener('click', e => {
-          e.preventDefault();
-          titleEl.textContent   = item.name;
-          bodyEl.innerHTML      = item.content;
-          overlay.style.display = 'flex';
-        });
-        li.append(a);
-        ul.append(li);
-      });
-      container.append(ul);
-    }
-  })();
+
+    container.append(ul);
+  }
+})();
+
 
   // ─── 4) Search + nav wiring + kick off ────────────────────────────────────
   // build Fuse index
