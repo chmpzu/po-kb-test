@@ -390,234 +390,132 @@ try {
   }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // ─── 1) Build modal overlay ───────────────────────────────────────────────
+  // 1) Build our single modal overlay once
   const overlay = document.createElement('div');
-  overlay.id = 'email-modal-overlay';
   Object.assign(overlay.style, {
-    position:       'fixed',
-    top:            0, left: 0, right: 0, bottom: 0,
-    background:     'rgba(0,0,0,0.5)',
-    display:        'none',
-    justifyContent: 'center',
-    alignItems:     'center',
-    padding:        '2rem',
-    boxSizing:      'border-box',
-    overflowY:      'auto',
-    zIndex:         '10000'
+    position: 'fixed', top:0, left:0, right:0, bottom:0,
+    background: 'rgba(0,0,0,0.5)',
+    display: 'none', justifyContent:'center', alignItems:'center',
+    padding:'2rem', boxSizing:'border-box', overflowY:'auto', zIndex:'10000'
   });
-
   const dialog = document.createElement('div');
   Object.assign(dialog.style, {
-    background:     '#fff',
-    padding:        '1rem',
-    borderRadius:   '8px',
-    maxWidth:       '600px',
-    width:          '90%',
-    boxSizing:      'border-box',
-    display:        'flex',
-    flexDirection:  'column'
+    background:'#fff', padding:'1rem', borderRadius:'8px',
+    maxWidth:'600px', width:'90%', boxSizing:'border-box',
+    display:'flex', flexDirection:'column'
   });
 
-  // Header row with title + close button
-  const hdr = document.createElement('div');
-  Object.assign(hdr.style, {
-    display:        'flex',
-    justifyContent: 'space-between',
-    alignItems:     'center',
-    marginBottom:   '.5rem'
+  // Header
+  const header = document.createElement('div');
+  Object.assign(header.style, {
+    display:'flex', justifyContent:'space-between', alignItems:'center',
+    marginBottom:'.5rem'
   });
-
   const titleEl = document.createElement('h3');
-  titleEl.id = 'email-modal-title';
   titleEl.style.margin = 0;
   titleEl.style.fontSize = '1.25rem';
-
   const closeBtn = document.createElement('button');
   closeBtn.innerHTML = '&times;';
   Object.assign(closeBtn.style, {
-    background: 'none',
-    border:     'none',
-    fontSize:   '1.5rem',
-    cursor:     'pointer'
+    background:'none', border:'none', fontSize:'1.5rem', cursor:'pointer'
   });
   closeBtn.addEventListener('click', () => overlay.style.display = 'none');
-
-  hdr.append(titleEl, closeBtn);
-  dialog.append(hdr);
+  header.append(titleEl, closeBtn);
+  dialog.append(header);
 
   // Copy button
   const copyBtn = document.createElement('button');
   copyBtn.textContent = 'Copy';
   Object.assign(copyBtn.style, {
-    alignSelf:    'flex-end',
-    marginBottom: '.5rem',
-    cursor:       'pointer'
+    alignSelf:'flex-end', marginBottom:'.5rem', cursor:'pointer'
   });
-  copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(bodyEl.innerText)
-      .then(() => {
-        copyBtn.textContent = 'Copied!';
-        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
-      });
-  });
-  dialog.append(copyBtn);
-
-  // Body container
-  const bodyEl = document.createElement('div');
-  bodyEl.id = 'email-modal-body';
-  Object.assign(bodyEl.style, {
-    whiteSpace:   'pre-wrap',
-    wordBreak:    'break-word'
-  });
-  dialog.append(bodyEl);
-
-  overlay.append(dialog);
-  document.body.append(overlay);
-
   copyBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(bodyEl.innerText).then(() => {
       copyBtn.textContent = 'Copied!';
       setTimeout(() => copyBtn.textContent = 'Copy', 1500);
     });
   });
+  dialog.append(copyBtn);
 
-  // ─── 2) Sheet loader helpers ────────────────────────────────────────────────
-  function fetchSheet(tab) {
-    const SHEET_ID = '1zWuPjF-bTWWRTtbs9BLWJk3w4h7Xrpi5oqyUbi6Oqrg';
+  // Body
+  const bodyEl = document.createElement('div');
+  Object.assign(bodyEl.style, {
+    whiteSpace:'pre-wrap', wordBreak:'break-word'
+  });
+  dialog.append(bodyEl);
+
+  overlay.append(dialog);
+  document.body.append(overlay);
+
+  // 2) Fetch helper (GSheet via gviz)
+  const SHEET_ID = '1zWuPjF-bTWWRTtbs9BLWJk3w4h7Xrpi5oqyUbi6Oqrg';
+  async function fetchSheet(tab) {
     const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`
               + `?sheet=${encodeURIComponent(tab)}&tqx=out:json`;
-    return fetch(url)
-      .then(r => r.text())
-      .then(text => {
-        const table = JSON.parse(text.substr(47).slice(0,-2)).table;
-        return table.rows.map(rw => rw.c.map(cell => cell && cell.v));
-      });
-  }
-  function parseGoogleDate(str) {
-    const m = /^Date\(([\d,]+)\)$/.exec(str);
-    if (!m) return new Date(str);
-    const [y,mo,d,h,mi,s] = m[1].split(',').map(n=>+n);
-    return new Date(y,mo,d,h,mi,s);
-  }
-  function formatTimestamp(dt) {
-    const MM   = String(dt.getMonth()+1).padStart(2,'0');
-    const DD   = String(dt.getDate()).padStart(2,'0');
-    const YYYY = dt.getFullYear();
-    let h = dt.getHours(), ampm = h<12?'AM':'PM';
-    h = h%12||12;
-    const hh = String(h).padStart(2,'0'),
-          mm = String(dt.getMinutes()).padStart(2,'0');
-    return `${MM}/${DD}/${YYYY} ${hh}:${mm} ${ampm}`;
+    const txt = await (await fetch(url)).text();
+    const tbl = JSON.parse(txt.substr(47).slice(0,-2)).table;
+    return tbl.rows.map(rw => rw.c.map(cell => cell && cell.v));
   }
 
-  // ─── 3) Load everything ────────────────────────────────────────────────────
-  async function loadPOKB() {
-    // Announcements
-    try {
-      const rows = await fetchSheet('Announcements');
-      const ul   = document.querySelector('#announcement-panel ul');
-      ul.innerHTML = '';
-      if (!rows.length) {
-        ul.innerHTML = '<li class="text-gray-500 italic">No announcements.</li>';
-      } else {
-        rows.forEach((r,i) => {
-          const raw    = r[0],
-                dtObj  = typeof raw==='string' && raw.startsWith('Date(')
-                       ? parseGoogleDate(raw)
-                       : new Date(raw),
-                time   = formatTimestamp(dtObj),
-                name   = r[1],
-                content= r[2],
-                id     = `ann-${i}`;
-          const li = document.createElement('li');
-          li.innerHTML = 
-            `<span class="ann-time">${time}</span>
-             <a href="#${id}" class="ann-link">${name}</a>`;
-          ul.append(li);
-          let tpl = document.querySelector(`[data-template="${id}"]`);
-          if (!tpl) {
-            tpl = document.createElement('div');
-            tpl.dataset.template = id;
-            document.getElementById('templates').append(tpl);
-          }
-          tpl.innerHTML = `<h2>${name}</h2>
-                           <small>${time}</small>
-                           <p>${content}</p>`;
-        });
-      }
-      document.querySelectorAll('.ann-link').forEach(a =>
+  // 3) Load Email Templates & wire click → modal
+  (async function loadEmailTemplates(){
+    const rows = (await fetchSheet('Email Templates')).slice(1);
+    const container = document.querySelector('[data-template="email"]');
+    container.innerHTML = '<h2>Email Templates</h2>';
+    const groups = {};
+    rows.forEach(([cat, name, content]) => {
+      (groups[cat] = groups[cat]||[]).push({name,content});
+    });
+    for (const [cat, items] of Object.entries(groups)) {
+      const h3 = document.createElement('h3');
+      h3.className = 'section';
+      h3.textContent = cat.toUpperCase();
+      container.append(h3);
+      const ul = document.createElement('ul');
+      items.forEach(item => {
+        const li = document.createElement('li');
+        const a  = document.createElement('a');
+        a.href = '#';
+        a.textContent = item.name;
+        a.style.cursor = 'pointer';
         a.addEventListener('click', e => {
           e.preventDefault();
-          const key = a.getAttribute('href').slice(1),
-                t   = document.querySelector(`[data-template="${key}"]`);
-          if (t) document.getElementById('detail-view').innerHTML = t.innerHTML;
-        })
-      );
-    } catch(e){ console.error(e); }
-
-    // Email Templates
-    try {
-      const rows = (await fetchSheet('Email Templates')).slice(1);
-      const container = document.querySelector('[data-template="email"]');
-      container.innerHTML = '<h2>Email Templates</h2>';
-      const groups = {};
-      rows.forEach(([cat,name,content]) => {
-        (groups[cat]=groups[cat]||[]).push({name,content});
-      });
-      Object.entries(groups).forEach(([cat,items]) => {
-        const h3 = document.createElement('h3');
-        h3.className = 'section';
-        h3.textContent = cat.toUpperCase();
-        container.append(h3);
-        const ul = document.createElement('ul');
-        items.forEach(item => {
-          const li = document.createElement('li'),
-                a  = document.createElement('a');
-          a.href = '#';
-          a.textContent = item.name;
-          a.style.cursor = 'pointer';
-          a.addEventListener('click', e => {
-            e.preventDefault();
-            titleEl.textContent = item.name;
-            bodyEl.innerHTML    = item.content;
-            overlay.style.display = 'flex';
-          });
-          li.append(a);
-          ul.append(li);
+          titleEl.textContent   = item.name;
+          bodyEl.innerHTML      = item.content;
+          overlay.style.display = 'flex';
         });
-        container.append(ul);
+        li.append(a);
+        ul.append(li);
       });
-    } catch(e){ console.error(e); }
+      container.append(ul);
+    }
+  })();
 
-    // SOPs, Trackers, Suppliers (similar pattern)…
-    // [You can fill those in as before, they’re unchanged.]
-  }
-
-  // ─── 4) Search + nav + kick-off ───────────────────────────────────────────
+  // ─── 4) Search + nav wiring + kick off ────────────────────────────────────
   // build Fuse index
   const items = [];
-  document.querySelectorAll('nav a').forEach(a =>
-    items.push({key:a.hash.slice(1),title:a.textContent.trim()})
-  );
-  document.querySelectorAll('#templates [data-template]').forEach(div => {
-    const h2 = div.querySelector('h2');
-    if (h2) items.push({key:div.dataset.template,title:h2.textContent.trim()});
+  document.querySelectorAll('nav a').forEach(a => {
+    items.push({ key: a.hash.slice(1), title: a.textContent.trim() });
   });
-  const fuse = new Fuse(items,{keys:['title'],threshold:0.3});
+  document.querySelectorAll('#templates [data-template]').forEach(div=>{
+    const h2 = div.querySelector('h2');
+    if (h2) items.push({ key: div.dataset.template, title: h2.textContent.trim() });
+  });
+  const fuse = new Fuse(items, { keys: ['title'], threshold: 0.3 });
 
-  // search box
+  // search handler
   const inp = document.getElementById('searchInput'),
         res = document.getElementById('searchResults');
   inp.addEventListener('input', () => {
     const q = inp.value.trim();
     res.innerHTML = '';
     if (!q) return;
-    fuse.search(q,{limit:10}).forEach(m => {
+    fuse.search(q,{limit:10}).forEach(m=>{
       const li = document.createElement('li');
       li.textContent = m.item.title;
-      li.addEventListener('click', () => {
+      li.addEventListener('click',()=>{
         const tpl = document.querySelector(`[data-template="${m.item.key}"]`);
-        if (tpl) document.getElementById('detail-view').innerHTML = tpl.innerHTML;
+        document.getElementById('detail-view').innerHTML = tpl.innerHTML;
         res.innerHTML = '';
         inp.value = '';
       });
@@ -626,18 +524,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // nav clicks
-  document.querySelectorAll('nav a').forEach(link => {
-    link.addEventListener('click', e => {
+  document.querySelectorAll('nav a').forEach(link=>{
+    link.addEventListener('click',e=>{
       e.preventDefault();
       const tpl = document.querySelector(`[data-template="${link.hash.slice(1)}"]`);
-      if (tpl) document.getElementById('detail-view').innerHTML = tpl.innerHTML;
+      document.getElementById('detail-view').innerHTML = tpl.innerHTML;
     });
   });
 
-  // finally, fetch data
+  // finally load all sheets
   loadPOKB();
 });
-   
 </script>
 </body>
 </html>
