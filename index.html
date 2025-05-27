@@ -83,140 +83,166 @@
     <div data-template="tasks"><h2>Task List</h2><p>Kanban: Backlog, In Progress, Review, Done.</p></div>
   </div>
 
-  <script>
-    function parseGoogleDate(str) {
-      const m = /^Date\(([\d,]+)\)$/.exec(str);
-      if (!m) return new Date(str);
-      const [y,mo,d,h,mi,s] = m[1].split(',').map(Number);
-      return new Date(y,mo,d,h,mi,s);
-    }
-    function formatTimestamp(d) {
-      let h = d.getHours(), ampm = h < 12 ? 'AM' : 'PM';
-      h = h % 12 || 12;
-      const MM = String(d.getMonth()+1).padStart(2,'0'),
-            DD = String(d.getDate()).padStart(2,'0'),
-            YYYY = d.getFullYear(),
-            hh = String(h).padStart(2,'0'),
-            mm = String(d.getMinutes()).padStart(2,'0');
-      return `${MM}/${DD}/${YYYY} ${hh}:${mm} ${ampm}`;
-    }
-    const SHEET_ID = '1zWuPjF-bTWWRTtbs9BLWJk3w4h7Xrpi5oqyUbi6Oqrg';
-    async function fetchSheet(tab) {
-      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(tab)}&tqx=out:json`,
-            text = await (await fetch(url)).text(),
-            table = JSON.parse(text.substr(47).slice(0,-2)).table;
-      return table.rows.map(r => r.c.map(c => c && c.v));
-    }
-    async function loadPOKB() {
-      try {
-        const rows = await fetchSheet('Announcements'),
-              ul = document.querySelector('#announcement-panel ul');
-        ul.innerHTML = rows.length
-          ? rows.map((r,i) => {
-              const dt = typeof r[0]==='string' ? parseGoogleDate(r[0]) : new Date(r[0]),
-                    time = formatTimestamp(dt),
-                    id = `ann-${i}`;
-              return `<li><span class="ann-time">${time}</span><a href="#${id}" class="ann-link">${r[1]}</a></li>`;
-            }).join('')
-          : '<li class="italic">No announcements.</li>';
-      } catch(e){ console.error(e) }
-      try {
-        const data = (await fetchSheet('Email Templates')).slice(1),
-              container = document.querySelector('[data-template="email"]'),
-              groups = {};
-        data.forEach(([cat,name,content]) => (groups[cat]=groups[cat]||[]).push({name,content}));
-        container.innerHTML = '<h2>Email Templates</h2>' + 
-          Object.entries(groups).map(([cat,items]) =>
-            `<h3 class="section">${cat.toUpperCase()}</h3><ul>` +
-            items.map(i=>`<li><a href="#" class="email-template-link" data-content="${i.content}">${i.name}</a></li>`).join('') +
-            `</ul>`
-          ).join('');
-      } catch(e){ console.error(e) }
-    }
-    async function loadMoreSheets() {
-      try {
-        const sops = await fetchSheet('SOPs');
-        document.querySelector('[data-template="sops"]').innerHTML =
-          `<h2>SOPs</h2><ul>${sops.map(r=>`<li><a href="${r[2]}" target="_blank">${r[1]}</a></li>`).join('')}</ul>`;
-      } catch{}
-      try {
-        const tr = (await fetchSheet('Trackers')).slice(1),
-              tDiv = document.querySelector('[data-template="trackers"]');
-        tDiv.innerHTML = tr.length
-          ? `<h2>Trackers</h2><ul>${tr.map(r=>`<li><a href="${r[2]||'#'}">${r[1]||'Untitled'}</a></li>`).join('')}</ul>`
+<script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+  
+<script>
+  const parseGoogleDate = s => {
+    const m = /^Date\(([\d,]+)\)$/.exec(s);
+    return m ? new Date(...m[1].split(',').map(Number)) : new Date(s);
+  };
+  const formatTimestamp = d => {
+    let h = d.getHours(), ampm = h < 12 ? 'AM' : 'PM';
+    h = h % 12 || 12;
+    const pad = n => String(n).padStart(2,'0');
+    return `${pad(d.getMonth()+1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(h)}:${pad(d.getMinutes())} ${ampm}`;
+  };
+  const SHEET_ID = '1zWuPjF-bTWWRTtbs9BLWJk3w4h7Xrpi5oqyUbi6Oqrg';
+  async function fetchSheet(tab) {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(tab)}&tqx=out:json`;
+    const txt = await (await fetch(url)).text();
+    const table = JSON.parse(txt.slice(47, -2)).table;
+    return table.rows.map(r => r.c.map(c => c && c.v));
+  }
+
+  async function loadPOKB() {
+    try {
+      const rows = await fetchSheet('Announcements');
+      const ul = document.querySelector('#announcement-panel ul');
+      ul.innerHTML = rows.length
+        ? rows.map((r,i) => {
+            const dt = typeof r[0]==='string' ? parseGoogleDate(r[0]) : new Date(r[0]);
+            return `<li>
+              <span class="ann-time">${formatTimestamp(dt)}</span>
+              <a href="#ann-${i}" class="ann-link">${r[1]}</a>
+            </li>`;
+          }).join('')
+        : '<li class="italic">No announcements.</li>';
+    } catch(e){ console.error(e) }
+
+    try {
+      const tpl = document.querySelector('[data-template="email"]');
+      const data = (await fetchSheet('Email Templates')).slice(1);
+      const groups = data.reduce((g,[cat,name,content]) => {
+        (g[cat]=g[cat]||[]).push({name,content}); return g;
+      }, {});
+      tpl.innerHTML = '<h2>Email Templates</h2>' +
+        Object.entries(groups).map(([cat,items]) =>
+          `<h3 class="section">${cat.toUpperCase()}</h3><ul>` +
+          items.map(i =>
+            `<li><a href="#" class="email-template-link" data-content="${i.content.replace(/"/g,'&quot;')}">
+               ${i.name}
+             </a></li>`
+          ).join('') +
+          '</ul>'
+        ).join('');
+    } catch(e){ console.error(e) }
+  }
+
+  async function loadMoreSheets() {
+    try {
+      const sops = await fetchSheet('SOPs');
+      document.querySelector('[data-template="sops"]').innerHTML =
+        `<h2>SOPs</h2><ul>${sops.map(r =>
+          `<li><a href="${r[2]}" target="_blank">${r[1]}</a></li>`
+        ).join('')}</ul>`;
+    } catch{}
+    try {
+      const tr = (await fetchSheet('Trackers')).slice(1);
+      document.querySelector('[data-template="trackers"]').innerHTML =
+        tr.length
+          ? `<h2>Trackers</h2><ul>${tr.map(r =>
+              `<li><a href="${r[2]||'#'}" target="_blank">${r[1]||'Untitled'}</a></li>`
+            ).join('')}</ul>`
           : '<h2>Trackers</h2><p class="italic">No trackers available.</p>';
-      } catch{}
-      try {
-        const sup = (await fetchSheet('Supplier Contacts')).slice(1),
-              tb = document.querySelector('[data-template="suppliers"] tbody');
-        tb.innerHTML = sup.map(r=>`<tr>${r.map(c=>`<td>${c||''}</td>`).join('')}</tr>`).join('');
-      } catch{}
-      document.querySelectorAll('.ann-link').forEach(link => {
-        link.onclick = e => {
-          e.preventDefault();
-          const tpl = document.querySelector(`[data-template="${link.hash.slice(1)}"]`);
-          document.getElementById('detail-view').innerHTML = tpl.innerHTML;
-        };
-      });
-    }
-    function initSearchNav() {
-      const items = [];
-      document.querySelectorAll('nav a').forEach(a => items.push({key:a.hash.slice(1),title:a.textContent}));
-      document.querySelectorAll('#templates [data-template]').forEach(div => {
-        const h = div.querySelector('h2');
-        if (h) items.push({key:div.dataset.template,title:h.textContent});
-      });
-      const fuse = new Fuse(items,{keys:['title'],threshold:0.3}),
-            inp = document.getElementById('searchInput'),
-            res = document.getElementById('searchResults');
-      inp.oninput = () => {
-        const q = inp.value.trim();
-        res.innerHTML = '';
-        if (!q) return;
-        fuse.search(q,{limit:10}).forEach(m => {
-          const li = document.createElement('li');
-          li.textContent = m.item.title;
-          li.onclick = () => {
-            document.getElementById('detail-view').innerHTML =
-              document.querySelector(`[data-template="${m.item.key}"]`).innerHTML;
-            res.innerHTML = '';
-            inp.value = '';
-          };
-          res.append(li);
-        });
+    } catch{}
+    try {
+      const sup = (await fetchSheet('Supplier Contacts')).slice(1);
+      document.querySelector('[data-template="suppliers"] tbody').innerHTML =
+        sup.map(r => `<tr>${r.map(c => `<td>${c||''}</td>`).join('')}</tr>`).join('');
+    } catch{}
+    document.querySelectorAll('.ann-link').forEach(l => {
+      l.onclick = e => {
+        e.preventDefault();
+        const tpl = document.querySelector(`[data-template="${l.hash.slice(1)}"]`);
+        document.getElementById('detail-view').innerHTML = tpl.innerHTML;
       };
-      document.querySelectorAll('nav a').forEach(link => {
-        link.onclick = e => {
-          e.preventDefault();
+    });
+  }
+
+  function initSearchNav() {
+    const items = [];
+    document.querySelectorAll('nav a').forEach(a =>
+      items.push({key:a.hash.slice(1),title:a.textContent})
+    );
+    document.querySelectorAll('#templates [data-template]').forEach(div => {
+      const h2 = div.querySelector('h2');
+      if (h2) items.push({key:div.dataset.template,title:h2.textContent});
+    });
+    const fuse = new Fuse(items,{keys:['title'],threshold:0.3});
+    const inp = document.getElementById('searchInput'),
+          res = document.getElementById('searchResults');
+    inp.oninput = () => {
+      const q = inp.value.trim();
+      res.innerHTML = q
+        ? fuse.search(q,{limit:10}).map(m => `<li>${m.item.title}</li>`).join('')
+        : '';
+      res.querySelectorAll('li').forEach((li,i) => {
+        li.onclick = () => {
+          const key = fuse.search(q,{limit:10})[i].item.key;
           document.getElementById('detail-view').innerHTML =
-            document.querySelector(`[data-template="${link.hash.slice(1)}"]`).innerHTML;
+            document.querySelector(`[data-template="${key}"]`).innerHTML;
+          inp.value = ''; res.innerHTML = '';
         };
       });
-    }
+    };
+    document.querySelectorAll('nav a').forEach(a => {
+      a.onclick = e => {
+        e.preventDefault();
+        document.getElementById('detail-view').innerHTML =
+          document.querySelector(`[data-template="${a.hash.slice(1)}"]`).innerHTML;
+      };
+    });
+  }
 
   document.addEventListener('DOMContentLoaded', () => {
     loadPOKB();
     loadMoreSheets();
     initSearchNav();
 
-      const procLink = document.getElementById('processors-link');
-      procLink.addEventListener('click', e => {
-        e.preventDefault();
-        document.getElementById('detail-view').innerHTML = `
-          <iframe
-            src="processors.html"
-            title="PO Processors"
-            style="width:100%; height:100vh; border:none; min-height:600px;"
-          ></iframe>
-        `;
-      });
+document.getElementById('detail-view').addEventListener('click', e => {
+  if (!e.target.matches('.email-template-link')) return;
+  e.preventDefault();
+  const content = e.target.dataset.content;
+  const title   = e.target.textContent;
+  const modal = document.createElement('div');
+  modal.innerHTML = `
+  <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000">
+  <div style="background:#fff;padding:1.5rem;max-width:600px;width:90%;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+  <button id="closeEmailModal" style="position:absolute;top:.5rem;right:.5rem;border:none;background:none;font-size:1.25rem;cursor:pointer">✕</button>
+  <button id="copyEmailModal" style="position:absolute;top:.5rem;right:3rem;border:none;background:var(--accent);color:#fff;padding:.25rem .5rem;border-radius:4px;cursor:pointer;font-size:.9rem">Copy</button>
+      <h3 style="margin:0 0 .5rem;font-weight:600;">${title}</h3>
+      <div style="white-space:pre-wrap;line-height:1.4;">${content}</div>
+    </div>
+  </div>`;
 
-      // auto-open if URL already has #processors
-      if (location.hash === '#processors') {
-        procLink.click();
-      }
+  document.body.append(modal);
+  modal.querySelector('#closeEmailModal').onclick = () => modal.remove();
+  modal.querySelector('#copyEmailModal').onclick = () => {
+    navigator.clipboard.writeText(content).then(() => {
+      const btn = modal.querySelector('#copyEmailModal');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
     });
+  };
+});
     
-  </script>
+    const procLink = document.getElementById('processors-link');
+    procLink.onclick = e => {
+      e.preventDefault();
+      document.getElementById('detail-view').innerHTML = `
+        <iframe src="processors.html"title="PO Processors"style="width:100%;height:100vh;border:0;min-height:600px"></iframe>`;};
+    if (location.hash === '#processors') procLink.click();
+  });
+</script>
 </body>
 </html>
