@@ -212,13 +212,11 @@ const procLink = document.querySelector('nav a[href="#processors"]');
       const doc = parser.parseFromString(text, 'text/html');
 
       // inject only the processors fragment
-      const fragment = doc.querySelector('#processors-content');
-      if (!fragment) throw new Error('No #processors-content found');
-      detail.innerHTML = fragment.innerHTML;
-
-      // re-bind your “View Tool” & “View Tutorial” handlers here if needed
+      let fragment = doc.querySelector('#processors-content');
+      if (!fragment) fragment = doc.querySelector('main');
+      detail.innerHTML = fragment ? fragment.innerHTML: '<p class="error">Couldn’t find content</p>';
       bindProcessorActions();
-
+      
     } catch (err) {
       console.error(err);
       detail.innerHTML = `<p class="error">Failed to load Processors: ${err.message}</p>`;
