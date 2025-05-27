@@ -93,9 +93,16 @@
       <option value="KSOURCE">KSOURCE</option>
       <option value="TONSA">TONSA</option>
       <option value="T14">T14</option>
-      <option value="T14">AMZL</option>
+      <option value="AMZL">AMZL</option>
     </select>
-  </div><table><thead><tr><th>Supplier</th><th>Contact</th><th>Email</th><th>Phone</th><th>Region</th><th>Status</th></tr></thead><tbody><tr><td>Example Co.</td><td>Jane Doe</td><td>jane@example.com</td><td>+1 555-0100</td><td>NA</td><td>Active</td></tr></tbody></table></div>
+      </div>
+      <table id="supplierTable">
+        <thead>
+          <tr><th>Supplier</th><th>Contact</th><th>Email</th><th>Phone</th><th>Region</th><th>Status</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
     <div data-template="tasks"><h2>Task List</h2>
     <label for="staffFilter" style="font-weight:600;margin-right:.5rem">Show tasks for:</label>
     <select id="staffFilter" style="padding:.5rem;border:1px solid #ccc;border-radius:4px"><option value="">— Select staff —</option></select>
@@ -219,7 +226,31 @@
           '</ul>'
         ).join('');
     } catch(e){ console.error(e) }
-  }
+        try {
+        const rows = await fetchSheetFromId(SHEET_ID, 'Supplier Contacts');
+        const [header, ...data] = rows;
+        const tbody = document.querySelector('#supplierTable tbody');
+        const filter = document.querySelector('#supplierFilter');
+        const suppliers = new Set();
+
+        // Populate table and collect unique suppliers
+        data.forEach(r => {
+          if (r.every(cell => cell === null || cell === '')) return;
+          const [supplier, contact, email, phone, region, status] = r;
+          suppliers.add(supplier);
+          const tr = document.createElement('tr');
+          [supplier, contact, email, phone, region, status].forEach(text => {
+            const td = document.createElement('td'); td.textContent = text || ''; tr.append(td);
+          });
+          tbody.append(tr);
+        });
+
+        // Populate filter dropdown
+        suppliers.forEach(s => {
+          const opt = document.createElement('option'); opt.value = s; opt.textContent = s; filter.append(opt);
+        });
+      } catch (e) { console.error('Supplier load error', e); }
+    }
   
 
   // Populate Task List dropdown template
@@ -364,7 +395,14 @@
         </iframe>`;
       return;
     }
-  });
+
+        if (e.target.id !== 'supplierFilter') return;
+      const filterVal = e.target.value;
+      document.querySelectorAll('#supplierTable tbody tr').forEach(row => {
+        const supplier = row.cells[0].textContent.trim();
+        row.style.display = (!filterVal || supplier === filterVal) ? '' : 'none';
+      });
+    });
 
   document.addEventListener('DOMContentLoaded', ()=>{
     loadPOKB();
