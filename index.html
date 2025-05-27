@@ -139,13 +139,35 @@
   }
 
   async function loadMoreSheets() {
-    try {
-      const sops = await fetchSheet('SOPs');
-      document.querySelector('[data-template="sops"]').innerHTML =
-        `<h2>SOPs</h2><ul>${sops.map(r =>
-          `<li><a href="${r[2]}" target="_blank">${r[1]}</a></li>`
-        ).join('')}</ul>`;
-    } catch{}
+  try {
+    const rows = await fetchSheet('SOPs');
+    const container = document.querySelector('[data-template="sops"]');
+    // group by category
+    const groups = rows.slice(1).reduce((g, [cat,name,content]) => {
+      (g[cat] = g[cat]||[]).push({ name, content });
+      return g;
+    }, {});
+    // render
+    container.innerHTML =
+      '<h2>SOPs</h2>' +
+      Object.entries(groups).map(([cat, items]) => `
+        <h3 class="section">${cat}</h3>
+        <ul>
+          ${items.map(i =>
+            `<li>
+               <a href="#" class="sop-link"
+                  data-title="${i.name.replace(/"/g,'&quot;')}"
+                  data-content="${i.content.replace(/"/g,'&quot;')}">
+                 ${i.name}
+               </a>
+             </li>`
+          ).join('')}
+        </ul>
+      `).join('');
+  } catch(e) {
+    console.error('SOPs load error', e);
+  }
+
     try {
       const tr = (await fetchSheet('Trackers')).slice(1);
       document.querySelector('[data-template="trackers"]').innerHTML =
@@ -209,33 +231,46 @@
     loadMoreSheets();
     initSearchNav();
 
-document.getElementById('detail-view').addEventListener('click', e => {
-  if (!e.target.matches('.email-template-link')) return;
-  e.preventDefault();
-  const content = e.target.dataset.content;
-  const title   = e.target.textContent;
-  const modal = document.createElement('div');
-  modal.innerHTML = `
-  <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000">
-  <div style="background:#fff;padding:1.5rem;max-width:600px;width:90%;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.15)">
-  <button id="closeEmailModal" style="position:absolute;top:.5rem;right:.5rem;border:none;background:none;font-size:1.25rem;cursor:pointer">✕</button>
-  <button id="copyEmailModal" style="position:absolute;top:.5rem;right:3rem;border:none;background:var(--accent);color:#fff;padding:.25rem .5rem;border-radius:4px;cursor:pointer;font-size:.9rem">Copy</button>
-      <h3 style="margin:0 0 .5rem;font-weight:600;">${title}</h3>
-      <div style="white-space:pre-wrap;line-height:1.4;">${content}</div>
-    </div>
-  </div>`;
+  document.getElementById('detail-view').addEventListener('click', e => {
+    if (!e.target.matches('.email-template-link')) return;
+    e.preventDefault();
+    const content = e.target.dataset.content;
+    const title   = e.target.textContent.trim();
+    const modal   = document.createElement('div');
+    modal.innerHTML = `
+      <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000">
+      <div style="background:#fff;padding:1rem;max-width:600px;width:90%;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
+      <h2 style="margin:0;padding-bottom:.25rem;border-bottom:2px solid #ffb900;font-size:1.25rem;font-weight:600;color:#333;">${title}</h2>
+      <button id="copyEmailContent" style="position:absolute;top:0.5rem;right:3.5rem;background:#ffb900;color:#fff;border:none;padding:.5rem .75rem;border-radius:4px;cursor:pointer;font-size:.9rem;">Copy</button>
+      <button id="closeEmailModal" style="position:absolute;top:1rem;right:1rem;border:none;background:none;font-size:1.25rem;cursor:pointer;">✕</button>
+      <div style="margin-top:.5rem;max-height:60vh;overflow:auto;white-space:pre-wrap;line-height:1.4;color:#444;">${content}</div></div></div>`;
+    document.body.append(modal);
+    const closeBtn = modal.querySelector('#closeEmailModal');
+    const copyBtn  = modal.querySelector('#copyEmailContent');
+    closeBtn.onclick = () => modal.remove();
+    copyBtn.onclick  = () => {
+      navigator.clipboard.writeText(content).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+      });
+    };
+  });
 
+document.body.addEventListener('click', e => {
+  if (!e.target.matches('.sop-link')) return;
+  e.preventDefault();
+  const title   = e.target.dataset.title;
+  const content = e.target.dataset.content;
+  const modal   = document.createElement('div');
+  modal.innerHTML = `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000">
+      <div style="background:#fff;padding:1rem;max-width:600px;width:90%;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
+        <h2 style="margin:0 0 .5rem;padding-bottom:.25rem;border-bottom:2px solid #ffb900;font-size:1.25rem;font-weight:600;color:#333;">${title}</h2>
+        <button id="closeSopModal" style="position:absolute;top:.5rem;right:.5rem;border:none;background:none;font-size:1.25rem;cursor:pointer;">✕</button>
+        <div style="margin-top:.5rem;max-height:60vh;overflow:auto;white-space:pre-wrap;line-height:1.4;color:#444;">${content}</div></div></div>`;
   document.body.append(modal);
-  modal.querySelector('#closeEmailModal').onclick = () => modal.remove();
-  modal.querySelector('#copyEmailModal').onclick = () => {
-    navigator.clipboard.writeText(content).then(() => {
-      const btn = modal.querySelector('#copyEmailModal');
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = 'Copy', 1500);
-    });
-  };
+  modal.querySelector('#closeSopModal').onclick = () => modal.remove();
 });
-    
     const procLink = document.getElementById('processors-link');
     procLink.onclick = e => {
       e.preventDefault();
