@@ -79,7 +79,22 @@
     <div data-template="ratings"><h2>Marketplace Performance Ratings</h2><p>KPIs and scorecards for seller ratings, return rates, on-time delivery.</p></div>
     <div data-template="sops"><h2>SOPs</h2><ul><li>Sales</li><li>Procurement</li><li>Logistics</li><li>Customer Service</li></ul></div>
     <div data-template="reports"><h2>Reports</h2><table><thead><tr><th>Report</th><th>Frequency</th><th>Owner</th></tr></thead><tbody><tr><td>Sales Dashboard</td><td>Daily</td><td>Sales Team</td></tr><tr><td>P&L Report</td><td>Monthly</td><td>Finance</td></tr></tbody></table></div>
-    <div data-template="suppliers"><h2>Supplier Contacts</h2><table><thead><tr><th>Supplier</th><th>Contact</th><th>Email</th><th>Phone</th><th>Region</th><th>Status</th></tr></thead><tbody><tr><td>Example Co.</td><td>Jane Doe</td><td>jane@example.com</td><td>+1 555-0100</td><td>NA</td><td>Active</td></tr></tbody></table></div>
+    <div data-template="suppliers"><h2>Supplier Contacts</h2><div style="margin-bottom:1rem;">
+    <label for="supplierFilter" style="font-weight:600;margin-right:.5rem">Filter by Supplier:</label>
+    <select id="supplierFilter" style="padding:.5rem;border:1px solid #ccc;border-radius:4px">
+      <option value="">All</option>
+      <option value="DEPO">DEPO</option>
+      <option value="TYC">TYC</option>
+      <option value="EAGLE">EAGLE</option>
+      <option value="KSI">KSI</option>
+      <option value="LKQ">LKQ</option>
+      <option value="USAUTO">USAUTO</option>
+      <option value="MEYER">MEYER</option>
+      <option value="KSOURCE">KSOURCE</option>
+      <option value="TONSA">TONSA</option>
+      <option value="T14">T14</option>
+    </select>
+  </div><table><thead><tr><th>Supplier</th><th>Contact</th><th>Email</th><th>Phone</th><th>Region</th><th>Status</th></tr></thead><tbody><tr><td>Example Co.</td><td>Jane Doe</td><td>jane@example.com</td><td>+1 555-0100</td><td>NA</td><td>Active</td></tr></tbody></table></div>
     <div data-template="tasks"><h2>Task List</h2><p>Kanban: Backlog, In Progress, Review, Done.</p></div>
   </div>
 
@@ -168,19 +183,40 @@
     console.error('SOPs load error', e);
   }
 
-    try {
-      const tr = (await fetchSheet('Trackers')).slice(1);
-      document.querySelector('[data-template="trackers"]').innerHTML =
-        tr.length
-          ? `<h2>Trackers</h2><ul>${tr.map(r =>
-              `<li><a href="${r[2]||'#'}" target="_blank">${r[1]||'Untitled'}</a></li>`
-            ).join('')}</ul>`
-          : '<h2>Trackers</h2><p class="italic">No trackers available.</p>';
-    } catch{}
+  try {
+    const rows = await fetchSheet('Trackers');
+    const trackerTpl = document.querySelector('[data-template="trackers"]');
+    const groups = rows.slice(1).reduce((acc, [category, name, url]) => {
+      (acc[category] = acc[category] || []).push({ name, url });
+      return acc;
+    }, {});
+    trackerTpl.innerHTML = '<h2>Trackers</h2>' +
+      Object.entries(groups).map(([cat, items]) => `
+        <h3 class="section">${cat}</h3>
+        <ul>
+          ${items.map(i =>
+            `<li>
+               <a href="${i.url || '#'}" target="_blank">${i.name || 'Untitled'}</a>
+             </li>`
+          ).join('')}
+        </ul>
+      `).join('');
+  } catch (e) {
+    console.error('Trackers load error', e);
+  }
+
     try {
       const sup = (await fetchSheet('Supplier Contacts')).slice(1);
       document.querySelector('[data-template="suppliers"] tbody').innerHTML =
         sup.map(r => `<tr>${r.map(c => `<td>${c||''}</td>`).join('')}</tr>`).join('');
+      document.body.addEventListener('change', e => {
+        if (e.target.id !== 'supplierFilter') return;
+        const val = e.target.value;
+     document.querySelectorAll('#detail-view table tbody tr').forEach(tr => {
+      const supplier = tr.cells[0]?.textContent.trim();
+      tr.style.display = (!val || supplier === val) ? '' : 'none';
+  });
+});
     } catch{}
     document.querySelectorAll('.ann-link').forEach(l => {
       l.onclick = e => {
