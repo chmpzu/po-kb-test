@@ -406,14 +406,15 @@
 
     if(e.target.matches('.ann-link')){
       e.preventDefault();
-      const title = e.target.dataset.title;
-      const content = e.target.dataset.content;
-      const time = e.target.parentElement.querySelector('.ann-time').textContent;
-      document.getElementById('detail-view').innerHTML = `
-        <h2>${title}</h2>
-        <p class="ann-time">${time}</p>
-        <div class="description">${content}</div>
-      `;
+      const title=e.target.dataset.title;const content=e.target.dataset.content;
+      const time=e.target.parentElement.querySelector('.ann-time').textContent;
+      const dv=document.getElementById('detail-view');
+      dv.innerHTML=`<button class="close-btn" id="closeDetail">✕</button><h2>${title}</h2><p class="ann-time">${time}</p><div class="description">${content}</div>`;
+      return;
+    }
+    if(e.target.id==='closeDetail'){
+      const dv=document.getElementById('detail-view');
+      dv.innerHTML=`<h2>Welcome</h2><p>Select a section from the navigation to view details here.</p>`;
       return;
     }
 
