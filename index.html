@@ -164,13 +164,19 @@
       ul.innerHTML = rows.length
         ? rows.map((r,i) => {
             const dt = typeof r[0]==='string' ? parseGoogleDate(r[0]) : new Date(r[0]);
+            const title = r[1] || '';
+            const content = r[2] || '';
             return `<li>
               <span class="ann-time">${formatTimestamp(dt)}</span>
-              <a href="#ann-${i}" class="ann-link">${r[1]||''}</a>
+              <a href="#ann-${i}" class="ann-link" 
+                 data-title="${title.replace(/"/g,'&quot;')}"
+                 data-content="${content.replace(/"/g,'&quot;')}">
+                ${title}
+              </a>
             </li>`;
           }).join('')
         : '<li class="italic">No announcements.</li>';
-    } catch(e){ console.error(e) }
+    } catch(e){ console.error(e); }
 
     // Email templates
     try {
@@ -395,6 +401,19 @@
       e.preventDefault();
       document.getElementById('detail-view').innerHTML = `
         <iframe src="processors.html" title="PO Processors"style="width:100%;height:100vh;border:0;min-height:600px"></iframe>`;
+      return;
+    }
+
+    if(e.target.matches('.ann-link')){
+      e.preventDefault();
+      const title = e.target.dataset.title;
+      const content = e.target.dataset.content;
+      const time = e.target.parentElement.querySelector('.ann-time').textContent;
+      document.getElementById('detail-view').innerHTML = `
+        <h2>${title}</h2>
+        <p class="ann-time">${time}</p>
+        <div class="description">${content}</div>
+      `;
       return;
     }
 
