@@ -93,14 +93,23 @@
       <option value="KSOURCE">KSOURCE</option>
       <option value="TONSA">TONSA</option>
       <option value="T14">T14</option>
+      <option value="T14">AMZL</option>
     </select>
   </div><table><thead><tr><th>Supplier</th><th>Contact</th><th>Email</th><th>Phone</th><th>Region</th><th>Status</th></tr></thead><tbody><tr><td>Example Co.</td><td>Jane Doe</td><td>jane@example.com</td><td>+1 555-0100</td><td>NA</td><td>Active</td></tr></tbody></table></div>
-    <div data-template="tasks"><h2>Task List</h2><p>Kanban: Backlog, In Progress, Review, Done.</p></div>
-  </div>
+    <div data-template="tasks"><h2>Task List</h2>
+    <label for="staffFilter" style="font-weight:600;margin-right:.5rem">Show tasks for:</label>
+    <select id="staffFilter" style="padding:.5rem;border:1px solid #ccc;border-radius:4px"><option value="">— Select staff —</option></select>
+    <table id="taskTable" style="width:100%;border-collapse:collapse;margin-top:1rem">
+      <thead></thead>
+      <tbody></tbody></table></div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
   
 <script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+<script>
+  // Utilities
   const parseGoogleDate = s => {
     const m = /^Date\(([\d,]+)\)$/.exec(s);
     return m ? new Date(...m[1].split(',').map(Number)) : new Date(s);
@@ -111,130 +120,128 @@
     const pad = n => String(n).padStart(2,'0');
     return `${pad(d.getMonth()+1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(h)}:${pad(d.getMinutes())} ${ampm}`;
   };
-  const SHEET_ID = '1zWuPjF-bTWWRTtbs9BLWJk3w4h7Xrpi5oqyUbi6Oqrg';
-  async function fetchSheet(tab) {
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(tab)}&tqx=out:json`;
+
+  // IDs and staff mapping
+  const SHEET_ID      = '1zWuPjF-bTWWRTtbs9BLWJk3w4h7Xrpi5oqyUbi6Oqrg';
+  const TASK_SHEET_ID = '1uqcBvF391zu34vQY-orpiWpGqqcjqevtB3yFByd0VDI';
+  const STAFF_OPTIONS = [
+    { full: 'Summary of Schedule',   tab: 'Summary of Schedule' },
+    { full: 'Marcus Bañez',          tab: 'Marcus' },
+    { full: 'Kathleen Delos Santos', tab: 'Kath' },
+    { full: 'Christine Anastacio',   tab: 'Christine' },
+    { full: 'Mary Guray',            tab: 'Mary' },
+    { full: 'Jerrilyn Alarma',       tab: 'Jeh' },
+    { full: 'Shari Kristine Torres', tab: 'Shari' },
+    { full: 'Hanna Ranario',         tab: 'Hanna' },
+    { full: 'Daricalyn Rosales',     tab: 'Daricalyn' },
+    { full: 'Hyacinth Mae Cipriano', tab: 'Hyacinth' },
+    { full: 'Cheztierlee Arlos',     tab: 'Chez' },
+    { full: 'Daryl Pagilagan',       tab: 'Daryl' },
+    { full: 'Jovilyn Leonaras',      tab: 'Jovilyn' }
+  ];
+
+  // Generic fetcher
+  async function fetchSheetFromId(sheetId, tab) {
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?sheet=${encodeURIComponent(tab)}&tqx=out:json`;
     const txt = await (await fetch(url)).text();
     const table = JSON.parse(txt.slice(47, -2)).table;
     return table.rows.map(r => r.c.map(c => c && c.v));
   }
 
+  // Load Announcements, Email, SOPs, Trackers
   async function loadPOKB() {
+    // Announcements
     try {
-      const rows = await fetchSheet('Announcements');
+      const rows = await fetchSheetFromId(SHEET_ID, 'Announcements');
       const ul = document.querySelector('#announcement-panel ul');
       ul.innerHTML = rows.length
         ? rows.map((r,i) => {
             const dt = typeof r[0]==='string' ? parseGoogleDate(r[0]) : new Date(r[0]);
             return `<li>
               <span class="ann-time">${formatTimestamp(dt)}</span>
-              <a href="#ann-${i}" class="ann-link">${r[1]}</a>
+              <a href="#ann-${i}" class="ann-link">${r[1]||''}</a>
             </li>`;
           }).join('')
         : '<li class="italic">No announcements.</li>';
     } catch(e){ console.error(e) }
 
+    // Email templates
     try {
       const tpl = document.querySelector('[data-template="email"]');
-      const data = (await fetchSheet('Email Templates')).slice(1);
-      const groups = data.reduce((g,[cat,name,content]) => {
+      const data = (await fetchSheetFromId(SHEET_ID,'Email Templates')).slice(1);
+      const groups = data.reduce((g,[cat,name,content])=>{
         (g[cat]=g[cat]||[]).push({name,content}); return g;
-      }, {});
+      },{});
       tpl.innerHTML = '<h2>Email Templates</h2>' +
         Object.entries(groups).map(([cat,items]) =>
-          `<h3 class="section">${cat.toUpperCase()}</h3><ul>` +
-          items.map(i =>
-            `<li><a href="#" class="email-template-link" data-content="${i.content.replace(/"/g,'&quot;')}">
-               ${i.name}
-             </a></li>`
-          ).join('') +
+          `<h3 class="section">${cat.toUpperCase()}</h3><ul>`+
+          items.map(i=>`<li>
+            <a href="#" class="email-template-link" data-content="${i.content.replace(/"/g,'&quot;')}">
+              ${i.name}
+            </a>
+          </li>`).join('')+
+          '</ul>'
+        ).join('');
+    } catch(e){ console.error(e) }
+
+    // SOPs
+    try {
+      const tpl = document.querySelector('[data-template="sops"]');
+      const rows = await fetchSheetFromId(SHEET_ID,'SOPs');
+      const groups = rows.slice(1).reduce((g,[cat,name,content])=>{
+        (g[cat]=g[cat]||[]).push({name,content}); return g;
+      },{});
+      tpl.innerHTML = '<h2>SOPs</h2>' +
+        Object.entries(groups).map(([cat,items]) =>
+          `<h3 class="section">${cat}</h3><ul>`+
+          items.map(i=>`<li>
+            <a href="#" class="sop-link"
+               data-title="${i.name.replace(/"/g,'&quot;')}"
+               data-content="${i.content.replace(/"/g,'&quot;')}">
+              ${i.name}
+            </a>
+          </li>`).join('')+
+          '</ul>'
+        ).join('');
+    } catch(e){ console.error(e) }
+
+    // Trackers
+    try {
+      const tpl = document.querySelector('[data-template="trackers"]');
+      const rows = await fetchSheetFromId(SHEET_ID,'Trackers');
+      const groups = rows.slice(1).reduce((g,[cat,name,url])=>{
+        (g[cat]=g[cat]||[]).push({name,url}); return g;
+      },{});
+      tpl.innerHTML = '<h2>Trackers</h2>' +
+        Object.entries(groups).map(([cat,items]) =>
+          `<h3 class="section">${cat}</h3><ul>`+
+          items.map(i=>`<li><a href="${i.url}" target="_blank">${i.name}</a></li>`).join('')+
           '</ul>'
         ).join('');
     } catch(e){ console.error(e) }
   }
+  
 
-  async function loadMoreSheets() {
-  try {
-    const rows = await fetchSheet('SOPs');
-    const container = document.querySelector('[data-template="sops"]');
-    // group by category
-    const groups = rows.slice(1).reduce((g, [cat,name,content]) => {
-      (g[cat] = g[cat]||[]).push({ name, content });
-      return g;
-    }, {});
-    // render
-    container.innerHTML =
-      '<h2>SOPs</h2>' +
-      Object.entries(groups).map(([cat, items]) => `
-        <h3 class="section">${cat}</h3>
-        <ul>
-          ${items.map(i =>
-            `<li>
-               <a href="#" class="sop-link"
-                  data-title="${i.name.replace(/"/g,'&quot;')}"
-                  data-content="${i.content.replace(/"/g,'&quot;')}">
-                 ${i.name}
-               </a>
-             </li>`
-          ).join('')}
-        </ul>
-      `).join('');
-  } catch(e) {
-    console.error('SOPs load error', e);
-  }
-
-  try {
-    const rows = await fetchSheet('Trackers');
-    const trackerTpl = document.querySelector('[data-template="trackers"]');
-    const groups = rows.slice(1).reduce((acc, [category, name, url]) => {
-      (acc[category] = acc[category] || []).push({ name, url });
-      return acc;
-    }, {});
-    trackerTpl.innerHTML = '<h2>Trackers</h2>' +
-      Object.entries(groups).map(([cat, items]) => `
-        <h3 class="section">${cat}</h3>
-        <ul>
-          ${items.map(i =>
-            `<li>
-               <a href="${i.url || '#'}" target="_blank">${i.name || 'Untitled'}</a>
-             </li>`
-          ).join('')}
-        </ul>
-      `).join('');
-  } catch (e) {
-    console.error('Trackers load error', e);
-  }
-
-    try {
-      const sup = (await fetchSheet('Supplier Contacts')).slice(1);
-      document.querySelector('[data-template="suppliers"] tbody').innerHTML =
-        sup.map(r => `<tr>${r.map(c => `<td>${c||''}</td>`).join('')}</tr>`).join('');
-      document.body.addEventListener('change', e => {
-        if (e.target.id !== 'supplierFilter') return;
-        const val = e.target.value;
-     document.querySelectorAll('#detail-view table tbody tr').forEach(tr => {
-      const supplier = tr.cells[0]?.textContent.trim();
-      tr.style.display = (!val || supplier === val) ? '' : 'none';
-  });
-});
-    } catch{}
-    document.querySelectorAll('.ann-link').forEach(l => {
-      l.onclick = e => {
-        e.preventDefault();
-        const tpl = document.querySelector(`[data-template="${l.hash.slice(1)}"]`);
-        document.getElementById('detail-view').innerHTML = tpl.innerHTML;
-      };
+  // Populate Task List dropdown template
+  document.addEventListener('DOMContentLoaded',()=>{
+    const f = document.querySelector('#templates #staffFilter');
+    f.innerHTML = '<option value="">— Select staff —</option>';
+    STAFF_OPTIONS.forEach(o=>{
+      const opt = document.createElement('option');
+      opt.value = o.tab; opt.textContent = o.full;
+      f.append(opt);
     });
-  }
+  });
 
-  function initSearchNav() {
+  // Navigation + live search
+  function initSearchNav(){
     const items = [];
-    document.querySelectorAll('nav a').forEach(a =>
+    document.querySelectorAll('nav a').forEach(a=>
       items.push({key:a.hash.slice(1),title:a.textContent})
     );
-    document.querySelectorAll('#templates [data-template]').forEach(div => {
+    document.querySelectorAll('#templates [data-template]').forEach(div=>{
       const h2 = div.querySelector('h2');
-      if (h2) items.push({key:div.dataset.template,title:h2.textContent});
+      if(h2) items.push({key:div.dataset.template,title:h2.textContent});
     });
     const fuse = new Fuse(items,{keys:['title'],threshold:0.3});
     const inp = document.getElementById('searchInput'),
@@ -242,78 +249,130 @@
     inp.oninput = () => {
       const q = inp.value.trim();
       res.innerHTML = q
-        ? fuse.search(q,{limit:10}).map(m => `<li>${m.item.title}</li>`).join('')
+        ? fuse.search(q,{limit:10}).map(m=>`<li>${m.item.title}</li>`).join('')
         : '';
-      res.querySelectorAll('li').forEach((li,i) => {
+      res.querySelectorAll('li').forEach((li,i)=>{
         li.onclick = () => {
           const key = fuse.search(q,{limit:10})[i].item.key;
           document.getElementById('detail-view').innerHTML =
             document.querySelector(`[data-template="${key}"]`).innerHTML;
-          inp.value = ''; res.innerHTML = '';
+          if(key==='tasks'){
+            const filter = document.getElementById('staffFilter');
+            filter.value='Summary of Schedule';
+            filter.dispatchEvent(new Event('change',{bubbles:true}));
+          }
+          inp.value=''; res.innerHTML='';
         };
       });
     };
-    document.querySelectorAll('nav a').forEach(a => {
+    document.querySelectorAll('nav a').forEach(a=>{
       a.onclick = e => {
         e.preventDefault();
+        const key = a.hash.slice(1);
         document.getElementById('detail-view').innerHTML =
-          document.querySelector(`[data-template="${a.hash.slice(1)}"]`).innerHTML;
+          document.querySelector(`[data-template="${key}"]`).innerHTML;
+        if(key==='tasks'){
+          const filter = document.getElementById('staffFilter');
+          filter.value='Summary of Schedule';
+          filter.dispatchEvent(new Event('change',{bubbles:true}));
+        }
       };
     });
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    loadPOKB();
-    loadMoreSheets();
-    initSearchNav();
-
-  document.getElementById('detail-view').addEventListener('click', e => {
-    if (!e.target.matches('.email-template-link')) return;
-    e.preventDefault();
-    const content = e.target.dataset.content;
-    const title   = e.target.textContent.trim();
-    const modal   = document.createElement('div');
-    modal.innerHTML = `
-      <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000">
-      <div style="background:#fff;padding:1rem;max-width:600px;width:90%;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
-      <h2 style="margin:0;padding-bottom:.25rem;border-bottom:2px solid #ffb900;font-size:1.25rem;font-weight:600;color:#333;">${title}</h2>
-      <button id="copyEmailContent" style="position:absolute;top:0.5rem;right:3.5rem;background:#ffb900;color:#fff;border:none;padding:.5rem .75rem;border-radius:4px;cursor:pointer;font-size:.9rem;">Copy</button>
-      <button id="closeEmailModal" style="position:absolute;top:1rem;right:1rem;border:none;background:none;font-size:1.25rem;cursor:pointer;">✕</button>
-      <div style="margin-top:.5rem;max-height:60vh;overflow:auto;white-space:pre-wrap;line-height:1.4;color:#444;">${content}</div></div></div>`;
-    document.body.append(modal);
-    const closeBtn = modal.querySelector('#closeEmailModal');
-    const copyBtn  = modal.querySelector('#copyEmailContent');
-    closeBtn.onclick = () => modal.remove();
-    copyBtn.onclick  = () => {
-      navigator.clipboard.writeText(content).then(() => {
-        copyBtn.textContent = 'Copied!';
-        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+  // Task List rendering (delegate)
+  document.body.addEventListener('change', async e=>{
+    if(e.target.id!=='staffFilter') return;
+    const tab   = e.target.value;
+    const thead = document.querySelector('#taskTable thead');
+    const tbody = document.querySelector('#taskTable tbody');
+    thead.innerHTML=''; tbody.innerHTML='';
+    if(!tab) return;
+    try {
+      const rows = await fetchSheetFromId(TASK_SHEET_ID,tab);
+      if(rows.length<2) return;
+      const header = rows[1];
+      let last = header.length-1;
+      while(last>=0 && !header[last]?.toString().trim()) last--;
+      if(last<0) return;
+      const trH = document.createElement('tr');
+      for(let i=0;i<=last;i++){
+        if(!header[i]?.toString().trim()) continue;
+        const th = document.createElement('th');
+        th.textContent = header[i];
+        trH.appendChild(th);
+      }
+      thead.appendChild(trH);
+      rows.slice(2).forEach(r=>{
+        const tr = document.createElement('tr');
+        for(let i=0;i<=last;i++){
+          if(!header[i]?.toString().trim()) continue;
+          const td = document.createElement('td');
+          td.textContent = r[i] ?? '';
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
       });
-    };
+    } catch(err){ console.error(err) }
   });
 
-document.body.addEventListener('click', e => {
-  if (!e.target.matches('.sop-link')) return;
-  e.preventDefault();
-  const title   = e.target.dataset.title;
-  const content = e.target.dataset.content;
-  const modal   = document.createElement('div');
-  modal.innerHTML = `
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000">
-      <div style="background:#fff;padding:1rem;max-width:600px;width:90%;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
-        <h2 style="margin:0 0 .5rem;padding-bottom:.25rem;border-bottom:2px solid #ffb900;font-size:1.25rem;font-weight:600;color:#333;">${title}</h2>
-        <button id="closeSopModal" style="position:absolute;top:.5rem;right:.5rem;border:none;background:none;font-size:1.25rem;cursor:pointer;">✕</button>
-        <div style="margin-top:.5rem;max-height:60vh;overflow:auto;white-space:pre-wrap;line-height:1.4;color:#444;">${content}</div></div></div>`;
-  document.body.append(modal);
-  modal.querySelector('#closeSopModal').onclick = () => modal.remove();
-});
-    const procLink = document.getElementById('processors-link');
-    procLink.onclick = e => {
+  document.body.addEventListener('click', e=>{
+
+    if(e.target.matches('.email-template-link')){
+      e.preventDefault();
+      const content = e.target.dataset.content,
+            title   = e.target.textContent.trim();
+      const modal = document.createElement('div');
+      modal.innerHTML = `
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000">
+          <div style="background:#fff;padding:1rem;max-width:600px;width:90%;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
+            <h2 style="margin:0;padding-bottom:.25rem;border-bottom:2px solid var(--accent);font-size:1.25rem;font-weight:600;color:var(--primary)">${title}</h2>
+            <button id="copyEmailContent"style="position:absolute;top:.5rem;right:4.5rem;background:var(--accent);color:#fff;border:none;padding:.5rem .75rem;border-radius:4px;cursor:pointer;font-size:.9rem">Copy</button>
+            <button id="closeModal"style="position:absolute;top:.5rem;right:.5rem;background:none;border:none;font-size:1.25rem;cursor:pointer">✕</button>
+            <div style="margin-top:.5rem;max-height:60vh;overflow:auto;white-space:pre-wrap;line-height:1.4;color:var(--text)">${content}</div></div></div>`;
+      document.body.append(modal);
+      modal.querySelector('#copyEmailContent').onclick = ()=>{
+        navigator.clipboard.writeText(content).then(()=>{
+          const btn = modal.querySelector('#copyEmailContent');
+          btn.textContent = 'Copied!'; setTimeout(()=>btn.textContent='Copy',1500);
+        });
+      };
+      modal.querySelector('#closeModal').onclick = ()=>modal.remove();
+      return;
+    }
+
+    if(e.target.matches('.sop-link')){
+      e.preventDefault();
+      const content = e.target.dataset.content,
+            title   = e.target.dataset.title;
+      const modal = document.createElement('div');
+      modal.innerHTML = `
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000">
+        <div style="background:#fff;padding:1rem;max-width:600px;width:90%;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
+        <h2 style="margin:0 0 .5rem;padding-bottom:.25rem;border-bottom:2px solid var(--accent);font-size:1.25rem;font-weight:600;color:var(--primary)">${title}</h2>
+        <button id="closeModal"style="position:absolute;top:.5rem;right:.5rem;background:none;border:none;font-size:1.25rem;cursor:pointer">✕</button><div style="margin-top:.5rem;max-height:60vh;overflow:auto;white-space:pre-wrap;line-height:1.4;color:var(--text)">${content}</div></div></div>`;
+      document.body.append(modal);
+      modal.querySelector('#closeModal').onclick = ()=>modal.remove();
+      return;
+    }
+
+    if(e.target.id==='processors-link'){
       e.preventDefault();
       document.getElementById('detail-view').innerHTML = `
-        <iframe src="processors.html"title="PO Processors"style="width:100%;height:100vh;border:0;min-height:600px"></iframe>`;};
-    if (location.hash === '#processors') procLink.click();
+        <iframe src="processors.html" title="PO Processors"
+                style="width:100%;height:100vh;border:0;min-height:600px">
+        </iframe>`;
+      return;
+    }
   });
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    loadPOKB();
+    initSearchNav();
+
+    document.querySelector('nav a[href="#tasks"]').click();
+  });
+
 </script>
 </body>
 </html>
