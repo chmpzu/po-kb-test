@@ -192,41 +192,73 @@
         };
       });
     }
-document.addEventListener('DOMContentLoaded', () => {
-  loadPOKB();
-  loadMoreSheets();
-  initSearchNav();
+    
+  // 1) define these at top‐level, so they're in global scope
+  function bindProcessorActions() {
+    document.querySelectorAll('.card').forEach(card => {
+      const title = card.querySelector('h4').textContent;
+      const [toolBtn, tutBtn] = card.querySelectorAll('.actions a');
+      [{el:toolBtn,isTut:false},{el:tutBtn,isTut:true}].forEach(({el,isTut})=>{
+        el.onclick = e => {
+          e.preventDefault();
+          const pane = document.createElement('div'),
+                back = document.createElement('button');
+          back.textContent = '← Back';
+          back.onclick = showProcessorList;
+          pane.append(
+            back,
+            Object.assign(document.createElement('h2'), {
+              textContent: isTut ? `${title} Tutorial` : title
+            }),
+            Object.assign(document.createElement('div'), {
+              innerHTML: isTut
+                ? `<p>Tutorial for <strong>${title}</strong>.</p>`
+                : `<p>Tool interface for <strong>${title}</strong>.</p>`
+            })
+          );
+          const dv = document.getElementById('detail-view');
+          dv.innerHTML = '';
+          dv.appendChild(pane);
+        };
+      });
+    });
+  }
 
-const procLink = document.querySelector('nav a[href="#processors"]');
-  procLink.addEventListener('click', async e => {
-    e.preventDefault();
-    const detail = document.getElementById('detail-view');
-    detail.innerHTML = '<p>Loading processors…</p>';
-    try {
-      const resp = await fetch('processors.html');
-      if (!resp.ok) throw new Error(resp.statusText);
-      const text = await resp.text();
+  function showProcessorList() {
+    const tpl = document.querySelector('[data-template="processors"]');
+    document.getElementById('detail-view').innerHTML = tpl.innerHTML;
+    bindProcessorActions();
+  }
 
-      // parse the returned HTML
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, 'text/html');
+  // 2) On DOMContentLoaded we just wire up everything
+  document.addEventListener('DOMContentLoaded', () => {
+    loadPOKB();
+    loadMoreSheets();
+    initSearchNav();
 
-      // inject only the processors fragment
-      let fragment = doc.querySelector('#processors-content');
-      if (!fragment) fragment = doc.querySelector('main');
-      detail.innerHTML = fragment ? fragment.innerHTML: '<p class="error">Couldn’t find content</p>';
-      bindProcessorActions();
-      
-    } catch (err) {
-      console.error(err);
-      detail.innerHTML = `<p class="error">Failed to load Processors: ${err.message}</p>`;
-    }
+    const procLink = document.querySelector('nav a[href="#processors"]');
+    procLink.onclick = async e => {
+      e.preventDefault();
+      const detail = document.getElementById('detail-view');
+      detail.innerHTML = '<p>Loading processors…</p>';
+      try {
+        const resp = await fetch('processors.html');
+        if (!resp.ok) throw new Error(resp.statusText);
+        const text = await resp.text();
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        // look for your wrapper. Prefer #processors-content
+        let fragment = doc.querySelector('#processors-content') || doc.querySelector('main');
+        detail.innerHTML = fragment ? fragment.innerHTML : '<p class="error">Couldn’t find content</p>';
+        bindProcessorActions();
+      } catch (err) {
+        detail.innerHTML = `<p class="error">Failed to load Processors: ${err.message}</p>`;
+      }
+    };
+
+    // auto‐open if URL already has #processors
+    if (location.hash === '#processors') procLink.click();
   });
-
-  // also auto-open if URL is already #processors
-  if (location.hash === '#processors') procLink.click();
-});
-
+    
   </script>
 </body>
 </html>
