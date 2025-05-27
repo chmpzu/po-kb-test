@@ -197,31 +197,36 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMoreSheets();
   initSearchNav();
 
-  const procLink = document.querySelector('nav a[href="#processors"]');
+const procLink = document.querySelector('nav a[href="#processors"]');
   procLink.addEventListener('click', async e => {
     e.preventDefault();
     const detail = document.getElementById('detail-view');
     detail.innerHTML = '<p>Loading processors…</p>';
     try {
       const resp = await fetch('processors.html');
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) throw new Error(resp.statusText);
       const text = await resp.text();
 
-      // parse only the <body> of processors.html
+      // parse the returned HTML
       const parser = new DOMParser();
       const doc = parser.parseFromString(text, 'text/html');
-      detail.innerHTML = doc.body.innerHTML;
+
+      // inject only the processors fragment
+      const fragment = doc.querySelector('#processors-content');
+      if (!fragment) throw new Error('No #processors-content found');
+      detail.innerHTML = fragment.innerHTML;
+
+      // re-bind your “View Tool” & “View Tutorial” handlers here if needed
+      bindProcessorActions();
 
     } catch (err) {
-      console.error('Error loading processors.html', err);
-      detail.innerHTML = `<p class="error">Could not load processors: ${err.message}</p>`;
+      console.error(err);
+      detail.innerHTML = `<p class="error">Failed to load Processors: ${err.message}</p>`;
     }
   });
 
-  // if page loaded with #processors in URL, simulate a click
-  if (location.hash === '#processors') {
-    procLink.click();
-  }
+  // also auto-open if URL is already #processors
+  if (location.hash === '#processors') procLink.click();
 });
 
   </script>
