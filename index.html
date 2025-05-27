@@ -192,29 +192,38 @@
         };
       });
     }
-    document.addEventListener('DOMContentLoaded', () => {
-      loadPOKB();
-      loadMoreSheets();
-      initSearchNav();
-      const procLink = document.querySelector('nav a[href="#processors"]');
-procLink.onclick = async e => {
-  e.preventDefault();
-  const detail = document.getElementById('detail-view');
-  try {
-    const resp = await fetch('processors.html');
-    if (!resp.ok) throw new Error(resp.statusText);
-    const text = await resp.text();
-    // parse out only the body of processors.html
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(text, 'text/html');
-    detail.innerHTML = doc.body.innerHTML;
-  } catch (err) {
-    detail.innerHTML = `<p class="error">Failed to load Processors: ${err.message}</p>`;
-  }
-};
+document.addEventListener('DOMContentLoaded', () => {
+  loadPOKB();
+  loadMoreSheets();
+  initSearchNav();
 
-    if (location.hash === '#processors') procLink.click();
-    });
+  const procLink = document.querySelector('nav a[href="#processors"]');
+  procLink.addEventListener('click', async e => {
+    e.preventDefault();
+    const detail = document.getElementById('detail-view');
+    detail.innerHTML = '<p>Loading processors…</p>';
+    try {
+      const resp = await fetch('processors.html');
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+
+      // parse only the <body> of processors.html
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, 'text/html');
+      detail.innerHTML = doc.body.innerHTML;
+
+    } catch (err) {
+      console.error('Error loading processors.html', err);
+      detail.innerHTML = `<p class="error">Could not load processors: ${err.message}</p>`;
+    }
+  });
+
+  // if page loaded with #processors in URL, simulate a click
+  if (location.hash === '#processors') {
+    procLink.click();
+  }
+});
+
   </script>
 </body>
 </html>
