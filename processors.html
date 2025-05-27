@@ -1,5 +1,72 @@
-<div id="processors-content">
-<main>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PO Team Projects</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary-color:#24305E; --primary-hover:#374785; --background:#F8F9FA; --card-bg:#FFFFFF; --text-color:#2C3E50; --spacing:1.5rem; --radius:0.5rem; --transition:0.3s; }
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Inter',sans-serif; background:var(--background); color:var(--text-color); display:flex; flex-direction:column; min-height:100vh; }
+    #welcome-modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000; }
+    .modal-content { background:#fff; padding:var(--spacing); border-radius:var(--radius); max-width:400px; text-align:center; box-shadow:0 4px 8px rgba(0,0,0,0.2); }
+    .modal-content h2 { color:var(--primary-color); margin-bottom:1rem; }
+    .modal-content p { color:#555; margin-bottom:1.5rem; }
+    .modal-content button { background:var(--primary-color); color:#fff; border:none; padding:0.5rem 1rem; border-radius:var(--radius); cursor:pointer; }
+    header { background:#fff; padding:calc(var(--spacing)*1.5) var(--spacing); text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition: transform var(--transition) ease;}
+    .header-content img { max-height:20px; margin-bottom:var(--spacing); }
+    .header-content h1 { font-size:2.5rem; color:var(--primary-color); }
+    .header-content p { color:#555; margin-top:0.5rem; }
+    #tool-viewer { display:none; flex:1; flex-direction:column; }
+	.video-wrapper {position: relative; width: 100%; height: 80vh; overflow: hidden;}
+	.video-wrapper.tool iframe {position: absolute; top: 0; left: 0; width: 100%; height: 100%;}
+	.video-wrapper.tutorial iframe {position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 100%; width: calc(80vh * (16/9));}
+    #back-btn { background:var(--primary-color); color:#fff; border:none; padding:0.5rem 1rem; margin:var(--spacing); border-radius:var(--radius); cursor:pointer; align-self:start; }
+    main { flex:1; max-width:1200px; margin:var(--spacing) auto; padding:0 var(--spacing); }
+    .search-container { margin-bottom:var(--spacing); text-align:center; }
+    .search-container select { width:100%; max-width:360px; padding:0.75rem 1rem; border:1px solid #ccc; border-radius:var(--radius); font-size:1rem; transition:border-color var(--transition); }
+    .search-container select:focus { outline:none; border-color:var(--primary-color); box-shadow:0 0 0 3px rgba(36,48,94,0.15); }
+    .projects-container { display:flex; flex-wrap:wrap; justify-content:center; gap:var(--spacing); }
+    .project-card { flex:1 1 calc(50% - var(--spacing)); max-width:360px; background:var(--card-bg); border-radius:var(--radius); box-shadow:0 4px 8px rgba(0,0,0,0.05); transition:transform var(--transition), box-shadow var(--transition); position:relative; overflow:hidden; margin:var(--spacing) 0; }
+    .project-card:hover { transform:translateY(-4px); box-shadow:0 8px 16px rgba(0,0,0,0.1); }
+    .owner-toggle { display:block; margin:var(--spacing) auto 0; padding:0.5rem 1rem; background:var(--primary-color); color:#fff; border:none; border-radius:var(--radius); cursor:pointer; transition:background var(--transition); }
+    .owner-toggle:hover { background:var(--primary-hover); }
+    .owner-info { display:none; padding:var(--spacing); background:#f0f4f8; }
+    .owner-photo { width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-color); display:block; margin:0 auto; }
+    .owner-name { text-align:center; margin-top:0.5rem; color:var(--primary-color); font-weight:600; }
+    .project-content { padding:var(--spacing); text-align:left; padding-bottom:calc(var(--spacing)*2); }
+    .project-content h2 { font-size:1.25rem; color:var(--primary-color); margin-bottom:0.5rem; }
+    .project-content p { color:#555; margin-bottom:1rem; font-size:0.95rem; }
+    .view-tool { position:absolute; bottom:var(--spacing); left:var(--spacing); text-decoration:none; font-weight:600; color:var(--primary-color); transition:border-color var(--transition); border-bottom:2px solid transparent; cursor:pointer; }
+    .view-tool:hover { border-color:var(--primary-hover); }
+    .view-tutorial { position:absolute; bottom:var(--spacing); right:var(--spacing); text-decoration:none; font-weight:600; color:var(--primary-color); transition:border-color var(--transition); border-bottom:2px solid transparent; cursor:pointer; }
+    .view-tutorial:hover { border-color:var(--primary-hover); }
+    footer { background:#fff; text-align:center; padding:var(--spacing) 0; color:#777; font-size:0.875rem; border-top:1px solid #eaeaea; }
+  </style>
+</head>
+<body>
+  <div id="welcome-modal">
+    <div class="modal-content">
+      <h2>Welcome!</h2>
+      <p>Here you can explore all the projects created by the PO team.</p>
+      <button id="modal-close">Get Started</button>
+    </div>
+  </div>
+  <header>
+    <div class="header-content">
+      <img src="https://raw.githubusercontent.com/purchase-order-team/Processors/main/path/to/photos/Default%20KarParts360%20LOGO%20Version%203.png" alt="KarParts360 Logo">
+      <h1>PO Team Projects</h1>
+      <p>Discover what our teammates are working on</p>
+    </div>
+  </header>
+  <div id="tool-viewer">
+    <button id="back-btn">← Back to Home</button>
+    <div class="video-wrapper">
+    <iframe id="tool-frame" src="" frameborder="0" allowfullscreen></iframe>
+  </div>
+  </div>
+  <main>
     <div class="search-container">
       <select id="search" aria-label="Select project owner">
         <option value="">Filter by owner</option>
@@ -179,5 +246,19 @@
           <a href="#" class="view-tutorial" data-tutorial-src="https://your.video.url/here">View Tutorial &rarr;</a>
         </div>
       </div>
+    </div>
   </main>
-</div>
+  <footer>
+    &copy; 2025 KarParts360 PO TEAM.
+  </footer>
+    <script>
+    document.getElementById('modal-close').addEventListener('click',()=>{document.getElementById('welcome-modal').style.display='none';});
+    document.getElementById('search').addEventListener('change',function(e){const term=e.target.value.toLowerCase();document.querySelectorAll('.project-card').forEach(card=>{const title=card.getAttribute('data-title').toLowerCase();card.style.display=term===''||title.includes(term)?'block':'none';});});
+    document.querySelectorAll('.owner-toggle').forEach(btn=>btn.addEventListener('click',()=>{const info=btn.nextElementSibling;info.style.display=info.style.display==='block'?'none':'block';}));
+const wrapper = document.querySelector('.video-wrapper');
+    document.querySelectorAll('.view-tool').forEach(link =>link.addEventListener('click', e => {e.preventDefault();const src = link.dataset.src;document.getElementById('tool-frame').src = src;wrapper.classList.remove('tutorial');wrapper.classList.add('tool');document.querySelector('main').style.display = 'none';document.getElementById('tool-viewer').style.display = 'flex';}));
+    document.querySelectorAll('.view-tutorial').forEach(link =>link.addEventListener('click', e => {e.preventDefault();const src = link.dataset.tutorialSrc;document.getElementById('tool-frame').src = src;wrapper.classList.remove('tool');wrapper.classList.add('tutorial');document.querySelector('main').style.display = 'none';document.getElementById('tool-viewer').style.display = 'flex';}));
+    document.getElementById('back-btn').addEventListener('click',()=>{document.getElementById('tool-viewer').style.display='none';document.querySelector('main').style.display='';document.getElementById('tool-frame').src='';});
+  </script>
+</body>
+</html>
