@@ -3,23 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>PO Knowledge Base</title>
+  <title>Purchase Hub</title>
   <style>
     :root{--primary:#333;--accent:#ffb900;--text:#4a4a4a;--bg:#f5f5f5;--header-height:60px}
     *,*::before,*::after{box-sizing:border-box}
     body{margin:0;padding:0;font-family:'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--text)}
     header{position:fixed;top:0;left:0;right:0;height:var(--header-height);background:#fff;border-bottom:1px solid #ddd;display:flex;align-items:center;padding:0 1rem;z-index:1000}
     header img{height:16px;margin-right:1rem}
-    header h1{margin:0;font-size:1.25rem;color:var(--primary);flex:1;text-align:center}
+    header h1{margin:0;font-size:1.5rem;color:var(--primary);flex:1;text-align:center}
     .search-wrapper{position:relative;margin-left:auto}
-    #searchInput{padding:.5rem;font-size:1rem;border:1px solid #ccc;border-radius:4px;width:200px}
+    #searchInput{padding:.5rem;font-size:.85rem;border:1px solid #ccc;border-radius:4px;width:270px}
     #searchResults{position:absolute;top:110%;left:0;right:0;background:#fff;border:1px solid #ccc;border-radius:4px;list-style:none;margin:0;padding:0;max-height:250px;overflow-y:auto;z-index:1001}
     #searchResults li{padding:.5rem;cursor:pointer}
     #searchResults li:hover{background:var(--bg)}
+    body.sidebar-collapsed nav {display: none;}
+    body.sidebar-collapsed nav h3 {opacity: 0;height: 0;overflow: hidden;}
+    body.sidebar-collapsed nav a {display: none;}
+    body.sidebar-collapsed #detail-view {margin-left: 0;}
     nav{position:fixed;top:var(--header-height);left:0;bottom:0;width:220px;background:var(--primary);padding:1rem;overflow-y:auto}
     nav h3{color:var(--accent);margin:0 0 1rem;font-size:1rem}
     nav a{display:block;color:#fff;text-decoration:none;padding:.5rem;border-radius:4px;margin-bottom:.25rem;transition:background .2s}
     nav a:hover{background:var(--accent);color:var(--primary)}
+    nav a.active {background: var(--accent);color: var(--primary);}
     .container{display:flex;margin-top:var(--header-height)}
     #detail-view{flex:1;padding:2rem;margin:0 320px 0 220px;background:#fff}
     #announcement-panel{position:fixed;top:var(--header-height);right:0;bottom:0;width:300px;background:#fff;border-left:1px solid #ddd;padding:1rem;overflow-y:auto}
@@ -27,6 +32,14 @@
     h3.section{margin-top:2rem;color:var(--primary);font-size:1.1rem;border-bottom:1px solid #ddd;padding-bottom:.25rem}
     table{width:100%;border-collapse:collapse;margin-top:1rem}
     th,td{border:1px solid #ddd;padding:.75rem;text-align:left}
+    .cards-container.marketplace-performance {display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.2rem;}
+    .cards-container.marketplace-performance .card {max-width: none; width: auto;}
+    .cards-container.marketplace-performance .screenshot {width: 100%; height: auto; object-fit: contain;}
+    .cards-container.top-performers {display: flex;flex-wrap: nowrap;justify-content: center;gap: 2rem;margin-top: 2rem;overflow-x: auto;padding-bottom: 1rem;}
+    .cards-container.top-performers .performer {flex: 0 0 auto;text-align: center;}
+    .cards-container.top-performers .profile-pic {width: 100px;height: 100px;border-radius: 50%;object-fit: cover;display: block;margin: 0 auto;border: 3px solid var(--accent);}
+    .cards-container.top-performers .name {margin-top: 0.5rem;font-size: 1rem;color: var(--primary);font-weight: bold;}
+    .cards-container{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-top:1rem}
     .cards-container{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-top:1rem}
     .card{background:#fff;border:1px solid #ddd;border-radius:8px;padding:1.25rem;box-shadow:0 2px 4px rgba(0,0,0,.1);display:flex;flex-direction:column}
     .badge{display:inline-block;background:var(--primary);color:#fff;font-size:.75rem;font-weight:600;text-transform:uppercase;padding:.25rem .75rem;border-radius:12px;align-self:center;margin-bottom:.75rem}
@@ -36,47 +49,77 @@
     .actions a{position:relative;text-decoration:none;font-size:.875rem;font-weight:600;color:var(--primary);display:inline-flex;align-items:center}
     .actions a::after{content:'→';margin-left:.25rem}
     .actions a:hover{color:var(--accent)}
+    #imgModal {position: fixed;z-index: 10000;top: 0;left: 0;width: 100%;height: 100%;background-color: rgba(0,0,0,0.8);display: flex;align-items: center;justify-content: center;}
+    #imgModalContent {max-width: 90%;max-height: 90%;border-radius: 8px;box-shadow: 0 2px 10px rgba(0,0,0,0.5);}
+    #imgModalClose {position: absolute;top: 1.5rem;right: 1.5rem;color: #fff;font-size: 2rem;font-weight: bold;cursor: pointer;user-select: none;}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
 </head>
-<body>
+  <body class="sidebar-collapsed">
   <header>
-      <img src="https://raw.githubusercontent.com/chmpzu/po-kb-test/6de8fd49f816bdd5a12098ef9dc0b7d449c76a52/assets/photos/Default%20KarParts360%20LOGO%20Version%203.png" alt="Karparts360 Logo">
-    <h1>PO Knowledge Base</h1>
+      <button id="sidebarToggle" aria-label="Toggle Sidebar"style="background:none; border:none; margin-right:1rem; cursor:pointer; font-size:1.3rem; color:var(--primary);">☰</button>
+      <img src="https://raw.githubusercontent.com/KP360-PO/KB/fd14166375f22e5247635b52376a6d6c5807fd66/assets/photos/Default%20KarParts360%20LOGO%20Version%203.png" alt="Karparts360 Logo">
+    <h1>Purchase Hub</h1>
     <div class="search-wrapper">
       <input id="searchInput" type="search" placeholder="Search keyword...">
       <ul id="searchResults"></ul>
     </div>
   </header>
-  <nav>
-    <h3>Navigate</h3>
+  <nav><h3>Navigate</h3>
     <a href="#dashboard">Dashboard</a>
-    <a href="#email">Email Templates</a>
-    <a href="#trackers">Trackers</a>
-    <a href="#ratings">Marketplace Ratings</a>
-    <a href="#sops">SOPs</a>
     <a href="#reports">Reports</a>
     <a href="#suppliers">Supplier Contacts</a>
+    <a href="#trackers">Trackers</a>
+    <a href="#email">Email Templates</a>
+    <a href="#sops">SOPs</a>
+    <a href="#ratings">Tutorials</a>
     <a href="#tasks">Task List</a>
     <a href="#processors" id="processors-link">Processors</a>
-  </nav>
+    <a href="#woohub" id="woohub-link">WooHub</a></nav>
   
   <div class="container">
     <div id="detail-view">
-      <h2>Welcome</h2>
-      <p>Select a section from the navigation to view details here.</p>
-    </div>
+      </div>
     <aside id="announcement-panel">
       <h2>Announcements</h2>
       <ul></ul>
     </aside>
   </div>
-
   <div id="templates" style="display:none;">
-    <div data-template="dashboard"><h2>Dashboard</h2><p>Overview of quick links and recent updates.</p></div>
+    <div data-template="dashboard">
+  <h2>Dashboard</h2>
+  <h3 class="section">Marketplace Performance</h3>
+  <div class="cards-container marketplace-performance">
+    <div class="card">
+      <div class="badge">Walmart</div>
+      <img src="assets/screenshots/walmart-performance.png"alt="Walmart Performance"class="screenshot"/>
+    </div>
+    <div class="card">
+      <div class="badge">eBay</div>
+      <img src="assets/screenshots/ebay-performance.png"alt="eBay Performance"class="screenshot"/>
+    </div>
+    <div class="card">
+      <div class="badge">Amazon</div>
+      <img src="assets/screenshots/amazon-performance.png"alt="Amazon Performance"class="screenshot"/>
+    </div>
+</div>
+  <h3 class="section">Top Performers</h3>
+  <p class="message">Congratulations to our top performers for the month of May! Keep up the amazing work! 🎉</p>
+  <div class="cards-container top-performers">
+    <div class="performer">
+      <img src="https://kp360-po.github.io/KPP/path/to/photos/Hannah.jpeg"alt="John Doe" class="profile-pic" />
+      <div class="name">Hannah Ranario</div>
+    </div>
+    <div class="performer">
+      <img src="https://kp360-po.github.io/KPP/path/to/photos/Hyacinth.jpeg"alt="Jane Smith" class="profile-pic" />
+      <div class="name">Hyacinth Mae Cipriano</div>
+    </div>
+    <!-- Add additional performers here -->
+  </div>
+</div>
+
     <div data-template="email"><h2>Email Templates</h2><ul><li>Customer Outreach</li><li>Internal Notifications</li><li>Supplier Requests</li></ul><p><em>Suggest new templates via the submission form.</em></p></div>
     <div data-template="trackers"><h2>Trackers</h2><ul><li>Order Fulfillment Status</li><li>Inventory Levels</li><li>Marketing Campaign Performance</li></ul></div>
-    <div data-template="ratings"><h2>Marketplace Performance Ratings</h2><p>KPIs and scorecards for seller ratings, return rates, on-time delivery.</p></div>
+    <div data-template="ratings"><h2>Tutorials</h2><p>Step-by-step how-to video guides.</p></div>
     <div data-template="sops"><h2>SOPs</h2><ul><li>Sales</li><li>Procurement</li><li>Logistics</li><li>Customer Service</li></ul></div>
     <div data-template="reports"><h2>Reports</h2><table><thead><tr><th>Report</th><th>Frequency</th><th>Owner</th></tr></thead><tbody><tr><td>Sales Dashboard</td><td>Daily</td><td>Sales Team</td></tr><tr><td>P&L Report</td><td>Monthly</td><td>Finance</td></tr></tbody></table></div>
     <div data-template="suppliers"><h2>Supplier Contacts</h2><div style="margin-bottom:1rem;">
@@ -98,87 +141,81 @@
       </div>
       <table id="supplierTable">
         <thead>
-          <tr><th>Supplier</th><th>Contact</th><th>Email</th><th>Phone</th><th>Region</th><th>Status</th></tr>
+          <tr><th>Supplier</th><th>Contact</th><th>Email</th><th>Phone</th><th>Notes</th><th>Status</th></tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
-    <div data-template="tasks"><h2>Task List</h2>
-    <label for="staffFilter" style="font-weight:600;margin-right:.5rem">Show tasks for:</label>
-    <select id="staffFilter" style="padding:.5rem;border:1px solid #ccc;border-radius:4px"><option value="">— Select staff —</option></select>
-    <table id="taskTable" style="width:100%;border-collapse:collapse;margin-top:1rem">
-      <thead></thead>
-      <tbody></tbody></table></div>
+  </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
   
-<script>
+  <div id="imgModal" style="display:none;">
+    <span id="imgModalClose">&times;</span>
+      <img id="imgModalContent" src="" alt="Zoomed Image" />
+  </div>
+
 <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+
 <script>
-  // Utilities
-  const parseGoogleDate = s => {
-    const m = /^Date\(([\d,]+)\)$/.exec(s);
-    return m ? new Date(...m[1].split(',').map(Number)) : new Date(s);
-  };
-  const formatTimestamp = d => {
-    let h = d.getHours(), ampm = h < 12 ? 'AM' : 'PM';
-    h = h % 12 || 12;
-    const pad = n => String(n).padStart(2,'0');
-    return `${pad(d.getMonth()+1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(h)}:${pad(d.getMinutes())} ${ampm}`;
-  };
+function to12Hour(hhmm) {
+  const [hh, mm] = hhmm.split(':').map(Number);
+  const suffix = hh >= 12 ? 'PM' : 'AM';
+  let hour12 = hh % 12;
+  if (hour12 === 0) hour12 = 12;
+  return `${hour12}:${String(mm).padStart(2,'0')} ${suffix}`; }
 
-  // IDs and staff mapping
+const STORAGE_KEY = 'kp360_tasks';
+
+const parseGoogleDate = s => {
+  const m = /^Date\(([\d,]+)\)$/.exec(s);
+  return m ? new Date(...m[1].split(',').map(Number)) : new Date(s); };
+const formatTimestamp = d => {
+  let h = d.getHours(), ampm = h < 12 ? 'AM' : 'PM';
+  h = h % 12 || 12;
+  const pad = n => String(n).padStart(2,'0');
+  return `${pad(d.getMonth()+1)}/${pad(d.getDate())}/${d.getFullYear()} ${pad(h)}:${pad(d.getMinutes())} ${ampm}`; };
+
   const SHEET_ID      = '1zWuPjF-bTWWRTtbs9BLWJk3w4h7Xrpi5oqyUbi6Oqrg';
-  const TASK_SHEET_ID = '1uqcBvF391zu34vQY-orpiWpGqqcjqevtB3yFByd0VDI';
-  const STAFF_OPTIONS = [
-    { full: 'Summary of Schedule',   tab: 'Summary of Schedule' },
-    { full: 'Marcus Bañez',          tab: 'Marcus' },
-    { full: 'Kathleen Delos Santos', tab: 'Kath' },
-    { full: 'Christine Anastacio',   tab: 'Christine' },
-    { full: 'Mary Guray',            tab: 'Mary' },
-    { full: 'Jerrilyn Alarma',       tab: 'Jeh' },
-    { full: 'Shari Kristine Torres', tab: 'Shari' },
-    { full: 'Hanna Ranario',         tab: 'Hanna' },
-    { full: 'Daricalyn Rosales',     tab: 'Daricalyn' },
-    { full: 'Hyacinth Mae Cipriano', tab: 'Hyacinth' },
-    { full: 'Cheztierlee Arlos',     tab: 'Chez' },
-    { full: 'Daryl Pagilagan',       tab: 'Daryl' },
-    { full: 'Jovilyn Leonaras',      tab: 'Jovilyn' }
-  ];
 
-  // Generic fetcher
   async function fetchSheetFromId(sheetId, tab) {
     const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?sheet=${encodeURIComponent(tab)}&tqx=out:json`;
     const txt = await (await fetch(url)).text();
     const table = JSON.parse(txt.slice(47, -2)).table;
-    return table.rows.map(r => r.c.map(c => c && c.v));
-  }
+    return table.rows.map(r => r.c.map(c => c && c.v)); }
 
-  // Load Announcements, Email, SOPs, Trackers
-  async function loadPOKB() {
-    // Announcements
-    try {
-      const rows = await fetchSheetFromId(SHEET_ID, 'Announcements');
-      const ul = document.querySelector('#announcement-panel ul');
-      ul.innerHTML = rows.length
-        ? rows.map((r,i) => {
-            const dt = typeof r[0]==='string' ? parseGoogleDate(r[0]) : new Date(r[0]);
+async function loadAnnouncements() {
+  try {
+    const rows = await fetchSheetFromId(SHEET_ID, 'Announcements');
+    const ul = document.querySelector('#announcement-panel ul');
+
+    ul.innerHTML = rows.length
+      ? rows
+          .map((r, i) => {
+            const dt =
+              typeof r[0] === 'string'
+                ? parseGoogleDate(r[0])
+                : new Date(r[0]);
             const title = r[1] || '';
             const content = r[2] || '';
-            return `<li>
-              <span class="ann-time">${formatTimestamp(dt)}</span>
-              <a href="#ann-${i}" class="ann-link" 
-                 data-title="${title.replace(/"/g,'&quot;')}"
-                 data-content="${content.replace(/"/g,'&quot;')}">
-                ${title}
-              </a>
-            </li>`;
-          }).join('')
-        : '<li class="italic">No announcements.</li>';
-    } catch(e){ console.error(e); }
+            return `
+              <li>
+                <span class="ann-time">${formatTimestamp(dt)}</span>
+                <a href="#ann-${i}" class="ann-link"
+                   data-title="${title.replace(/"/g, '&quot;')}"
+                   data-content="${content.replace(/"/g, '&quot;')}">
+                  ${title}
+                </a>
+              </li>
+            `;
+          })
+          .join('')
+      : '<li class="italic">No announcements.</li>';
+  } catch (err) {
+    console.error('loadAnnouncements error:', err);
+  }
+}
 
-    // Email templates
+async function loadOtherSheets() {
     try {
       const tpl = document.querySelector('[data-template="email"]');
       const data = (await fetchSheetFromId(SHEET_ID,'Email Templates')).slice(1);
@@ -197,7 +234,6 @@
         ).join('');
     } catch(e){ console.error(e) }
 
-    // SOPs
     try {
       const tpl = document.querySelector('[data-template="sops"]');
       const rows = await fetchSheetFromId(SHEET_ID,'SOPs');
@@ -218,7 +254,6 @@
         ).join('');
     } catch(e){ console.error(e) }
 
-    // Trackers
     try {
       const tpl = document.querySelector('[data-template="trackers"]');
       const rows = await fetchSheetFromId(SHEET_ID,'Trackers');
@@ -239,11 +274,9 @@
         const filter = document.querySelector('#supplierFilter');
         const suppliers = new Set();
 
-        // Clear previous content
         tbody.innerHTML = '';
         filter.innerHTML = '<option value="">All</option>';
 
-        // Build rows and collect unique names
         data.forEach(r => {
           if (r.every(cell => !cell)) return;
           const [supplier, contact, email, phone, region, status] = r;
@@ -255,107 +288,128 @@
           tbody.append(tr);
         });
 
-        // Populate filter dropdown
         suppliers.forEach(s => {
           const opt = document.createElement('option'); opt.value = s; opt.textContent = s; filter.append(opt);
         });
       } catch (e) { console.error('Supplier load error', e); }
     }
-  
 
-  // Populate Task List dropdown template
-  document.addEventListener('DOMContentLoaded',()=>{
-    const f = document.querySelector('#templates #staffFilter');
-    f.innerHTML = '<option value="">— Select staff —</option>';
-    STAFF_OPTIONS.forEach(o=>{
-      const opt = document.createElement('option');
-      opt.value = o.tab; opt.textContent = o.full;
-      f.append(opt);
+  function buildSearchItems() {
+    const itemsMap = new Map();
+
+    // 1. Nav links
+    document.querySelectorAll('nav a').forEach(a => {
+      const key = a.hash.slice(1);
+      const title = a.textContent.trim();
+      itemsMap.set(title, { type: 'nav', key, title });
     });
-  });
 
-  // Navigation + live search
-  function initSearchNav(){
-    const items = [];
-    document.querySelectorAll('nav a').forEach(a=>
-      items.push({key:a.hash.slice(1),title:a.textContent})
-    );
-    document.querySelectorAll('#templates [data-template]').forEach(div=>{
+    // 2. Static templates (e.g., dashboard, reports, etc.)
+    document.querySelectorAll('#templates [data-template]').forEach(div => {
+      const key = div.dataset.template;
       const h2 = div.querySelector('h2');
-      if(h2) items.push({key:div.dataset.template,title:h2.textContent});
+      if (h2) {
+        const title = h2.textContent.trim();
+        itemsMap.set(title, { type: 'template', key, title });
+      }
     });
-    const fuse = new Fuse(items,{keys:['title'],threshold:0.3});
-    const inp = document.getElementById('searchInput'),
-          res = document.getElementById('searchResults');
+
+    // 3. Email templates (once they've been injected)
+    document.querySelectorAll('.email-template-link').forEach(el => {
+      const title = el.textContent.trim();
+      itemsMap.set(title, { type: 'email', element: el, title });
+    });
+
+    // 4. SOP links (once injected)
+    document.querySelectorAll('.sop-link').forEach(el => {
+      const title = el.dataset.title.trim();
+      itemsMap.set(title, { type: 'sop', element: el, title });
+    });
+
+    return Array.from(itemsMap.values());
+  }
+
+  function initSearchNav() {
+    let items = []; 
+    let fuse;
+
+    const inp = document.getElementById('searchInput');
+    const res = document.getElementById('searchResults');
+
+    function refreshIndex() {
+      items = buildSearchItems();
+      fuse = new Fuse(items, { keys: ['title'], threshold: 0.3 });
+    }
+
+    // Rebuild index after dynamic sheets load
+    refreshIndex();
+    loadOtherSheets().then(() => {
+      // Delay slightly to ensure email/SOP links exist
+      setTimeout(refreshIndex, 200);
+    });
+
     inp.oninput = () => {
       const q = inp.value.trim();
-      res.innerHTML = q
-        ? fuse.search(q,{limit:10}).map(m=>`<li>${m.item.title}</li>`).join('')
-        : '';
-      res.querySelectorAll('li').forEach((li,i)=>{
+      if (!q) {
+        res.innerHTML = '';
+        return;
+      }
+
+      const matches = fuse.search(q, { limit: 10 });
+      res.innerHTML = matches
+        .map(m => `<li>${m.item.title}</li>`)
+        .join('');
+
+      res.querySelectorAll('li').forEach((li, i) => {
         li.onclick = () => {
-          const key = fuse.search(q,{limit:10})[i].item.key;
-          document.getElementById('detail-view').innerHTML =
-            document.querySelector(`[data-template="${key}"]`).innerHTML;
-          if(key==='tasks'){
-            const filter = document.getElementById('staffFilter');
-            filter.value='Summary of Schedule';
-            filter.dispatchEvent(new Event('change',{bubbles:true}));
+          const { type, key, title, element } = matches[i].item;
+          if (type === 'nav') {
+            // Navigate to that section
+            document.querySelector(`nav a[href="#${key}"]`).click();
+          } else if (type === 'template') {
+            // Render static template
+            document.getElementById('detail-view').innerHTML =
+              document.querySelector(`[data-template="${key}"]`).innerHTML;
+            setActiveTab(key);
+          } else if (type === 'email') {
+            // Open email modal
+            element.click();
+          } else if (type === 'sop') {
+            // Open SOP modal
+            element.click();
           }
-          inp.value=''; res.innerHTML='';
+          inp.value = '';
+          res.innerHTML = '';
         };
       });
     };
-    document.querySelectorAll('nav a').forEach(a=>{
+
+    // Nav link clicks should clear search results
+    document.querySelectorAll('nav a').forEach(a => {
       a.onclick = e => {
         e.preventDefault();
         const key = a.hash.slice(1);
-        document.getElementById('detail-view').innerHTML =
-          document.querySelector(`[data-template="${key}"]`).innerHTML;
-        if(key==='tasks'){
-          const filter = document.getElementById('staffFilter');
-          filter.value='Summary of Schedule';
-          filter.dispatchEvent(new Event('change',{bubbles:true}));
+
+        if (key === 'tasks') {
+          document.getElementById('detail-view').innerHTML =
+            `<iframe src="task-list.html" style="width:100%; height:80vh; border:none;"></iframe>`;
+        } else {
+          document.getElementById('detail-view').innerHTML =
+            document.querySelector(`[data-template="${key}"]`).innerHTML;
         }
+        setActiveTab(key);
+        inp.value = '';
+        res.innerHTML = '';
       };
     });
   }
-
-  // Task List rendering (delegate)
-  document.body.addEventListener('change', async e=>{
-    if(e.target.id!=='staffFilter') return;
-    const tab   = e.target.value;
-    const thead = document.querySelector('#taskTable thead');
-    const tbody = document.querySelector('#taskTable tbody');
-    thead.innerHTML=''; tbody.innerHTML='';
-    if(!tab) return;
-    try {
-      const rows = await fetchSheetFromId(TASK_SHEET_ID,tab);
-      if(rows.length<2) return;
-      const header = rows[1];
-      let last = header.length-1;
-      while(last>=0 && !header[last]?.toString().trim()) last--;
-      if(last<0) return;
-      const trH = document.createElement('tr');
-      for(let i=0;i<=last;i++){
-        if(!header[i]?.toString().trim()) continue;
-        const th = document.createElement('th');
-        th.textContent = header[i];
-        trH.appendChild(th);
-      }
-      thead.appendChild(trH);
-      rows.slice(2).forEach(r=>{
-        const tr = document.createElement('tr');
-        for(let i=0;i<=last;i++){
-          if(!header[i]?.toString().trim()) continue;
-          const td = document.createElement('td');
-          td.textContent = r[i] ?? '';
-          tr.appendChild(td);
-        }
-        tbody.appendChild(tr);
-      });
-    } catch(err){ console.error(err) }
+  
+function setActiveTab(key) {
+  document.querySelectorAll('nav a').forEach(a => {
+    const hash = a.getAttribute('href');
+    a.classList.toggle('active', hash === '#' + key);
   });
+}
 
   document.body.addEventListener('click', e=>{
 
@@ -368,7 +422,7 @@
         <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000">
           <div style="background:#fff;padding:1rem;max-width:600px;width:90%;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
             <h2 style="margin:0;padding-bottom:.25rem;border-bottom:2px solid var(--accent);font-size:1.25rem;font-weight:600;color:var(--primary)">${title}</h2>
-            <button id="copyEmailContent"style="position:absolute;top:.5rem;right:4.5rem;background:var(--accent);color:#fff;border:none;padding:.5rem .75rem;border-radius:4px;cursor:pointer;font-size:.9rem">Copy</button>
+            <button id="copyEmailContent"style="position:absolute;top:.5rem;right:2.5rem;background:var(--accent);color:#fff;border:none;padding:.5rem .75rem;border-radius:4px;cursor:pointer;font-size:.9rem">Copy</button>
             <button id="closeModal"style="position:absolute;top:.5rem;right:.5rem;background:none;border:none;font-size:1.25rem;cursor:pointer">✕</button>
             <div style="margin-top:.5rem;max-height:60vh;overflow:auto;white-space:pre-wrap;line-height:1.4;color:var(--text)">${content}</div></div></div>`;
       document.body.append(modal);
@@ -397,26 +451,35 @@
       return;
     }
 
-    if(e.target.id==='processors-link'){
-      e.preventDefault();
-      document.getElementById('detail-view').innerHTML = `
-        <iframe src="processors.html" title="PO Processors"style="width:100%;height:100vh;border:0;min-height:600px"></iframe>`;
-      return;
-    }
+  if (e.target.id === 'processors-link') {
+   e.preventDefault();
+   window.open('https://kp360-po.github.io/KPP/PO_Portal.html', '_blank');
+   return;
+  }
 
-    if(e.target.matches('.ann-link')){
-      e.preventDefault();
-      const title=e.target.dataset.title;const content=e.target.dataset.content;
-      const time=e.target.parentElement.querySelector('.ann-time').textContent;
-      const dv=document.getElementById('detail-view');
-      dv.innerHTML=`<button class="close-btn" id="closeDetail">✕</button><h2>${title}</h2><p class="ann-time">${time}</p><div class="description">${content}</div>`;
-      return;
-    }
-    if(e.target.id==='closeDetail'){
-      const dv=document.getElementById('detail-view');
-      dv.innerHTML=`<h2>Welcome</h2><p>Select a section from the navigation to view details here.</p>`;
-      return;
-    }
+  if (e.target.id === 'woohub-link') {
+  e.preventDefault();
+  window.open('https://woohub-info.github.io/kb/', '_blank');
+  return;
+  }
+
+  if (e.target.matches('.ann-link')) {
+    e.preventDefault();
+    const title   = e.target.dataset.title;
+    const content = e.target.dataset.content;
+    const time    = e.target.parentElement.querySelector('.ann-time').textContent;
+
+    const modal = document.createElement('div');
+modal.innerHTML = `
+  <div style="position:fixed; inset:0;background:rgba(0,0,0,0.5);display:flex; align-items:center; justify-content:center;z-index:10000">
+    <div style="background:#fff;padding:1rem .75rem .75rem .75rem;max-width:800px; width:90%;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.3);display:flex; flex-direction:column;">
+      <button id="closeAnnModal" style="position:absolute; top:.5rem; right:.5rem;background:none; border:none;font-size:1.25rem; cursor:pointer;">✕</button>
+      <h2 style="margin:0;padding-bottom:.25rem;border-bottom:2px solid var(--accent);font-size:1.2rem; font-weight:600;color:var(--primary);">${title}</h2>
+      <p style="margin:0;padding-top:.25rem;font-size:.875rem; color:var(--text);">${time}</p>
+      <div style="margin:0;padding:.25rem 0;overflow:auto;white-space:pre-wrap;line-height:1.4;color:var(--text);">${content}</div></div></div>`;
+
+  document.body.append(modal);modal.querySelector('#closeAnnModal').onclick = () => modal.remove();return;}
+  if (e.target.id === 'closeDetail') {document.querySelector('nav a[href="#dashboard"]').click();return;}
 
       if (e.target.id !== 'supplierFilter') return;
       const val = e.target.value;
@@ -425,13 +488,78 @@
       });
     });
 
-  document.addEventListener('DOMContentLoaded', ()=>{
-    loadPOKB();
-    initSearchNav();
+function showLatestAnnouncementModal() {
+  const listItems = document.querySelectorAll('#announcement-panel ul li');
+  if (!listItems.length) return;
 
-    document.querySelector('nav a[href="#dashboard"]').click();
+  const firstLi = listItems[0];
+  const title   = firstLi.querySelector('.ann-link').dataset.title;
+  const content = firstLi.querySelector('.ann-link').dataset.content;
+  const time    = firstLi.querySelector('.ann-time').textContent;
+  const annKey = `${title}||${time}`;
+  if (localStorage.getItem('lastAckedAnnouncement') === annKey) return;
+  const modal = document.createElement('div');
+modal.innerHTML = `
+  <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000">
+    <div style="background:#fff;padding:1rem .75rem .75rem;max-width:800px;width:90%;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);display:flex;flex-direction:column;">
+      <h2 style=" margin:0;padding-bottom:.25rem;border-bottom:2px solid var(--accent);font-size:1.5rem;color:var(--primary);">${title}</h2>
+      <p style="margin:0;padding-top:.25rem;font-size:.875rem;color:var(--text);">${time}</p>
+      <div style="margin:0;padding:.25rem 0;overflow:auto;white-space:pre-wrap;line-height:1.4;color:var(--text);">${content}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0;padding-top:.25rem;border-top:1px solid #eee;">
+        <label style="display:flex;align-items:center;margin:0;">
+        <input type="checkbox" id="ackCheckbox" style="margin-right:.5rem"/>I understand.</label>
+        <button id="ackButton" disabled style="padding:.5rem 1rem;border:none;border-radius:4px;font-weight:600;cursor:not-allowed;background:#ccc;color:#fff;">Close</button></div></div></div>`;
+  document.body.append(modal);
+  const cb  = modal.querySelector('#ackCheckbox');
+  const btn = modal.querySelector('#ackButton');
+  cb.addEventListener('change', () => {
+    btn.disabled = !cb.checked;
+    btn.style.background = cb.checked ? 'var(--accent)' : '#ccc';
+    btn.style.cursor     = cb.checked ? 'pointer'      : 'not-allowed';
   });
+  btn.addEventListener('click', () => {
+    localStorage.setItem('lastAckedAnnouncement', annKey);
+    modal.remove();
+  });
+}
+  const sidebarToggleBtn = document.getElementById('sidebarToggle');
+    sidebarToggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('sidebar-collapsed');
+});
 
+const imgModal      = document.getElementById('imgModal');
+const imgModalImg   = document.getElementById('imgModalContent');
+const imgModalClose = document.getElementById('imgModalClose');
+
+function openImageModal(src, alt) {imgModalImg.src = src;imgModalImg.alt = alt || '';imgModal.style.display = 'flex';}
+function closeImageModal() {imgModal.style.display = 'none';imgModalImg.src = '';imgModalImg.alt = '';}
+function initImageZoom() {
+  const zoomableImgs = document.querySelectorAll('.cards-container.marketplace-performance .screenshot');
+  zoomableImgs.forEach(img => {
+    img.style.cursor = 'zoom-in';
+    img.addEventListener('click', () => {
+      openImageModal(img.src, img.alt);
+    });
+  });
+}
+
+imgModalClose.addEventListener('click', closeImageModal);
+imgModal.addEventListener('click', e => {
+  if (e.target === imgModal) {
+    closeImageModal();
+  }
+});
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initSearchNav();
+    document.querySelector('nav a[href="#dashboard"]').click();
+    setActiveTab('dashboard');
+    loadAnnouncements().then(() => {
+      setTimeout(() => {showLatestAnnouncementModal();}, 500);
+    });
+    loadOtherSheets();
+    initImageZoom();
+  });
 </script>
 </body>
 </html>
